@@ -3027,6 +3027,40 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Reintento final post-init
   bindLoginOverride();
 
+  // SYNC AGRESIVO: si el user ya clickeó alguien ANTES de que mi wrapper bindee,
+  // currentUser global está seteado pero Cascara state no. Sincronizamos ya.
+  async function aggressiveSyncToUI() {
+    if (!Cascara.state.ready) return;
+    const uiKey = window.currentUser;
+    if (!uiKey) return;
+    const expectedName = USER_KEY_TO_DB_SLUG[uiKey];
+    if (!expectedName) return;
+    const currentName = Cascara.state.user?.name?.toLowerCase();
+    if (currentName === expectedName) return; // ya están sincronizados
+    // Mismatch detectado: forzar login en Cascara
+    const users = await Cascara.listUsers();
+    const dbUser = users.find(u => u.name.toLowerCase() === expectedName);
+    if (dbUser) {
+      console.warn('[Cascara] Aggressive sync triggered:', { uiKey, expectedName, was: currentName });
+      await Cascara.login(dbUser.id);
+      if (typeof injectNavLinks === 'function') injectNavLinks();
+      if (window.CascaraHome) CascaraHome.refresh();
+    }
+  }
+  window._cascaraAggressiveSync = aggressiveSyncToUI;
+
+  // Disparar el sync agresivo en varios momentos críticos
+  document.addEventListener('cascara:ready', () => {
+    aggressiveSyncToUI();
+    setTimeout(aggressiveSyncToUI, 300);
+    setTimeout(aggressiveSyncToUI, 1000);
+  });
+  if (Cascara.state.ready) {
+    aggressiveSyncToUI();
+    setTimeout(aggressiveSyncToUI, 300);
+    setTimeout(aggressiveSyncToUI, 1000);
+  }
+
   // Sync extra: cuando aplican el user al home (UI), verificar que Cascara state coincida
   const tryWrapApplyUserToHome = () => {
     if (typeof window.applyUserToHome !== 'function' || window.applyUserToHome._cascaraWrapped) {
@@ -3068,6 +3102,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const originalGoTo = window.goTo;
     if (originalGoTo._cascaraHooked) return;
     window.goTo = function(viewName) {
+      // SYNC AGRESIVO: cada navegación dispara verificación de identidad
+      if (viewName !== 'login' && window._cascaraAggressiveSync) {
+        window._cascaraAggressiveSync();
+      }
+
       // Persistir vista actual (excepto login y official-preso que necesita state extra)
       if (viewName && viewName !== 'login' && viewName !== 'official-preso') {
         try { localStorage.setItem('cascara_view', viewName); } catch (_) {}
