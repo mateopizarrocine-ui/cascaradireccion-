@@ -111,9 +111,9 @@ html, body {
 }
 
 .login-logo {
-  width: 280px;
+  width: 180px;
   height: auto;
-  filter: drop-shadow(0 4px 24px rgba(0,0,0,0.2));
+  opacity: 0.96;
 }
 
 .login-card {
@@ -597,67 +597,39 @@ html, body {
   border: 1px solid transparent;
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
+/* Highlight muy sutil top-right, sin tirar a violeta */
 .hcard::before {
   content: '';
   position: absolute;
-  top: -20%;
+  top: -10%;
   right: -10%;
   width: 60%;
-  height: 120%;
-  background: radial-gradient(ellipse, rgba(255,255,255,0.10) 0%, transparent 60%);
-  filter: blur(30px);
+  height: 100%;
+  background: radial-gradient(ellipse, rgba(255,255,255,0.08) 0%, transparent 60%);
+  filter: blur(40px);
   pointer-events: none;
   z-index: 0;
 }
-/* Granulado interno propio (las cards azules necesitan más textura) */
+/* Grain mínimo */
 .hcard::after {
   content: '';
   position: absolute;
   inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  opacity: 0.30;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.3 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.12;
   mix-blend-mode: overlay;
   pointer-events: none;
   z-index: 0;
 }
 .hcard:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 18px 40px rgba(16,6,159,0.25);
+  transform: translateY(-2px);
+  box-shadow: 0 18px 40px rgba(16,6,159,0.22);
 }
-.hcard.others {
-  cursor: default;
-}
-.hcard.others:hover {
-  transform: none;
-  box-shadow: 0 8px 24px rgba(16,6,159,0.12);
-}
+.hcard.others { cursor: default; }
+.hcard.others:hover { transform: none; box-shadow: 0 8px 22px rgba(16,6,159,0.12); }
 
-.hcard-sticker {
-  position: absolute;
-  pointer-events: none;
-  z-index: 1;
-  filter: brightness(0) invert(1);
-}
-.hs-arquero {
-  top: -14%;
-  right: -12%;
-  width: 44%;
-  opacity: 0.1;
-}
-.hs-oval {
-  top: -10%;
-  right: -12%;
-  width: 46%;
-  transform: rotate(-6deg);
-  opacity: 0.1;
-}
-.hs-cascaragram {
-  bottom: -10%;
-  left: -8%;
-  width: 50%;
-  opacity: 0.1;
-  transform: rotate(-3deg);
-}
+/* Stickers ocultos — eran figuras anamorfas off-brand. Las cards limpias. */
+.hcard-sticker { display: none; }
 
 .hcard-inner {
   position: relative;
@@ -2564,7 +2536,9 @@ html, body {
   border-color: rgba(200,30,30,0.25);
 }
 .f-kpi-add,
-.f-resp-add {
+.f-resp-add,
+.f-dep-add,
+.f-milestone-add {
   align-self: flex-start;
   background: transparent;
   border: 1px dashed rgba(16,6,159,0.35);
@@ -2576,13 +2550,43 @@ html, body {
   cursor: pointer;
   font-family: inherit;
   transition: background 0.15s, border-color 0.15s;
+  letter-spacing: 0.02em;
 }
 .f-kpi-add:hover,
-.f-resp-add:hover {
+.f-resp-add:hover,
+.f-dep-add:hover,
+.f-milestone-add:hover {
   background: rgba(16,6,159,0.06);
   border-color: var(--blue);
 }
 .f-resp-add { margin-top: 2px; }
+.f-milestone-add { padding: 7px 14px; font-size: 11.5px; margin-top: 4px; }
+
+/* Botón secundario branded para acciones inline (Importar, etc.) */
+.f-import-btn {
+  background: transparent !important;
+  border: 1px solid rgba(0,0,0,0.14) !important;
+  color: var(--blue) !important;
+  padding: 7px 14px !important;
+  border-radius: 999px !important;
+  font: 700 11.5px 'Helvetica Neue', Helvetica, sans-serif !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.f-import-btn:hover {
+  background: rgba(16,6,159,0.08) !important;
+  border-color: var(--blue) !important;
+}
+
+/* Botón remove en proyecto/team/mejora */
+.f-resp-remove, .f-imp-remove, .f-dep-remove, .f-ms-remove, .f-kpi-remove {
+  transition: color 0.15s;
+}
+.f-resp-remove:hover, .f-imp-remove:hover, .f-dep-remove:hover, .f-ms-remove:hover, .f-kpi-remove:hover {
+  color: #E53935 !important;
+}
 
 /* Articulación (fs4) */
 .f-art-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -3226,7 +3230,7 @@ html, body {
      ============================================================ -->
 <div id="view-login" class="active">
   <div class="login-container login-v2">
-    <img class="login-logo" src="assets/brand/cascara-jinete-azul.png" alt="Cáscara Collective" />
+    <img class="login-logo" src="assets/brand/cascara-jinete-blanco.png" alt="Cáscara Collective" />
 
     <div class="login-v2-inner">
       <!-- ESTADO 1: Selector de identidad (default) -->

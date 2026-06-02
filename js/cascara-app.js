@@ -1479,9 +1479,7 @@ const CascaraForm = {
       btn.className = 'f-import-btn';
       btn.type = 'button';
       btn.textContent = label;
-      btn.style.cssText = 'margin-left:auto;background:transparent;border:1px solid rgba(0,0,0,0.14);color:#10069F;padding:6px 12px;border-radius:999px;font:500 11.5px Helvetica;cursor:pointer;letter-spacing:0.02em;';
-      btn.onmouseover = () => btn.style.background = 'rgba(16,6,159,0.06)';
-      btn.onmouseout = () => btn.style.background = 'transparent';
+      btn.style.cssText = 'margin-left:auto;';
       btn.onclick = async (e) => {
         e.preventDefault();
         if (!confirm(`Importar la data de ${section} del Q anterior? Se suma a lo que ya tengas cargado.`)) return;
