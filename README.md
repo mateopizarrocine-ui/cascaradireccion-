@@ -24,3 +24,8 @@ Luego ir a http://localhost:8000
 ## Deploy
 
 Cada push a `main` se publica automáticamente vía GitHub Pages.
+
+## Colaboradores
+
+- Facundo Couyet
+- Teo Pizarro
