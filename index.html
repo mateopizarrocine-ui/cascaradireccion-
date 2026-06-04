@@ -3438,7 +3438,7 @@ html, body {
             <div class="area-row locked">
               <span class="area-num">05</span>
               <div class="area-info">
-                <span class="area-name">Operaciones</span>
+                <span class="area-name">Operaciones y Fulfillment</span>
                 <span class="area-director">Mateo Pizarro</span>
               </div>
               <span class="area-status locked">En proceso</span>
@@ -3475,7 +3475,7 @@ html, body {
             <div class="preso-mini" onclick="event.stopPropagation(); openPreso('contenido');"><span class="num">02</span>Contenido</div>
             <div class="preso-mini" onclick="event.stopPropagation(); openPreso('marketing');"><span class="num">03</span>Growth &amp; Marketing</div>
             <div class="preso-mini" onclick="event.stopPropagation(); openPreso('comercial');"><span class="num">04</span>Comercial</div>
-            <div class="preso-mini" onclick="event.stopPropagation(); openPreso('operaciones');"><span class="num">05</span>Operaciones</div>
+            <div class="preso-mini" onclick="event.stopPropagation(); openPreso('operaciones');"><span class="num">05</span>Operaciones y Fulfillment</div>
             <div class="preso-mini" onclick="event.stopPropagation(); openPreso('admin');"><span class="num">06</span>Admin &amp; Finanzas</div>
             <div class="preso-mini" onclick="event.stopPropagation(); openPreso('capital');"><span class="num">07</span>Capital Humano</div>
           </div>
@@ -4283,7 +4283,7 @@ html, body {
           <span class="preso-status ready">Presentada</span>
         </div>
         <div>
-          <div class="preso-name">Operaciones</div>
+          <div class="preso-name">Operaciones y Fulfillment</div>
           <div class="preso-director">Mateo Pizarro · COO</div>
         </div>
         <div class="preso-cta">
@@ -4365,7 +4365,7 @@ function goToArea(area) {
 // ============================================================
 const PEOPLE_MAP = {
   facu:      { name: 'Facu',      full: 'Facundo Couyet',     initials: 'FC', role: 'CEO',                preso: null,          areaKey: 'admin',       area: 'Admin & Finanzas', msg: 'Mirá el plan del trimestre y revisá lo que cada área presentó.' },
-  teo:       { name: 'Teo',       full: 'Mateo Pizarro',      initials: 'MP', role: 'Operaciones',        preso: 'operaciones', areaKey: 'operaciones', area: 'Operaciones',      msg: 'Vamos a tu plan de Operaciones.' },
+  teo:       { name: 'Teo',       full: 'Mateo Pizarro',      initials: 'MP', role: 'Operaciones y Fulfillment',        preso: 'operaciones', areaKey: 'operaciones', area: 'Operaciones y Fulfillment',      msg: 'Vamos a tu plan de Operaciones y Fulfillment.' },
   fede:      { name: 'Fede',      full: 'Federico Cristofari', initials: 'FC', role: 'Contenido',          preso: 'contenido',   areaKey: 'contenido',   area: 'Contenido',        msg: 'Vamos a tu plan de Contenido.' },
   juana:     { name: 'Juana',     full: 'Juana Tempesta',     initials: 'JT', role: 'Creatividad',        preso: 'creatividad', areaKey: 'creatividad', area: 'Creatividad',      msg: 'Vamos a tu plan de Creatividad.' },
   franco:    { name: 'Franco',    full: 'Franco Dato',        initials: 'FD', role: 'Growth & Marketing', preso: 'marketing',   areaKey: 'marketing',   area: 'Marketing',        msg: 'Vamos a tu plan de Growth & Marketing.' },
@@ -4691,7 +4691,7 @@ const PRESENTACIONES = {
   contenido:   { area: 'Contenido',   director: 'Federico Cristofari', slides: 11 },
   marketing:   { area: 'Growth & Marketing', director: 'Franco Dato · Growth Partner', slides: 13 },
   comercial:   { area: 'Comercial',   director: 'Francisca · Facu (interino)', slides: 12 },
-  operaciones: { area: 'Operaciones', director: 'Mateo Pizarro · COO', slides: 12 },
+  operaciones: { area: 'Operaciones y Fulfillment', director: 'Mateo Pizarro · COO', slides: 12 },
   admin:       { area: 'Admin & Finanzas', director: 'Facu (interino)', slides: 11 },
   capital:     { area: 'Capital Humano', director: 'Facundo Couyet · CEO', slides: 11 },
 };
@@ -6898,7 +6898,7 @@ html, body { height: 100%; background: var(--cream); color: var(--ink); font-fam
           <div class="meta-row"><span class="meta-lbl">A cargo</span><span class="meta-val">Franco Dato <em>· Growth Partner</em></span></div>
           <div class="meta-row"><span class="meta-lbl">Vínculo</span><span class="meta-val">Partner externo con revenue share</span></div>
           <div class="meta-row"><span class="meta-lbl">Cubre Marketing</span><span class="meta-val"><em>como interino, hasta definir un director</em></span></div>
-          <div class="meta-row"><span class="meta-lbl">Responsabilidades</span><span class="meta-val italic-blue">8 frentes</span></div>
+          <div class="meta-row"><span class="meta-lbl">Responsabilidades</span><span class="meta-val italic-blue">7 frentes</span></div>
         </div>
       </div>
     </div>
@@ -7188,30 +7188,7 @@ html, body { height: 100%; background: var(--cream); color: var(--ink); font-fam
     </div>
     <div class="slide-footer"><div class="fl"><svg viewBox="0 0 200 200"><path fill="currentColor" d="M100 0 L108 92 L200 100 L108 108 L100 200 L92 108 L0 100 L92 92 Z"/></svg><span>Growth & Marketing · Q3 2026</span></div><div class="fn">XI / 13 · 11</div></div>
   </section>
-
-  <section class="slide">
-    <img class="bg-star" src="assets/stickers/star-archer.png" alt="" aria-hidden="true" />
-    <div class="slide-inner">
-      <div class="slide-tag">XI · Resumen</div>
-      <div class="resumen-head">
-        <div class="resumen-title">Las 8 responsabilidades<br/><span class="accent">de un vistazo.</span></div>
-        <div class="resumen-lead">Franco Dato · Growth Partner + Marketing interino</div>
-      </div>
-      <div class="resumen-grid-8">
-        <div class="rc"><div class="rc-head"><div class="rc-num">01</div><div class="rc-pill">Partner</div></div><div class="rc-name">Growth del ecosistema</div><div class="rc-desc">Estrategia macro de crecimiento. Qué línea empujar, en qué orden.</div><div class="rc-metric">Plan del Q · objetivos · resultados</div></div>
-        <div class="rc"><div class="rc-head"><div class="rc-num">02</div><div class="rc-pill">Partner</div></div><div class="rc-name">Producto</div><div class="rc-desc">La Cáscara, Cascarita, Experiences. Precio, oferta, funnel.</div><div class="rc-metric">Roadmap · CAC · conversión · retención</div></div>
-        <div class="rc"><div class="rc-head"><div class="rc-num">03</div><div class="rc-pill">Partner</div></div><div class="rc-name">Equipo comercial</div><div class="rc-desc">Lo armó. Hoy lo audita y propone mejoras.</div><div class="rc-metric">Proceso · auditoría · conversión</div></div>
-        <div class="rc"><div class="rc-head"><div class="rc-num">04</div><div class="rc-pill interino">Interino</div></div><div class="rc-name">Dirección Marketing</div><div class="rc-desc">Cubre la función hasta que se defina un director.</div><div class="rc-metric">Estrategia · operación · transición</div></div>
-        <div class="rc"><div class="rc-head"><div class="rc-num">05</div><div class="rc-pill interino">Interino</div></div><div class="rc-name">Lanzamientos</div><div class="rc-desc">Diseña cada lanzamiento del Q: brief, mecánica, oferta.</div><div class="rc-metric">Calendario · KPIs · aprendizajes</div></div>
-        <div class="rc"><div class="rc-head"><div class="rc-num">06</div><div class="rc-pill interino">Interino</div></div><div class="rc-name">Bajada a Contenido</div><div class="rc-desc">Conecta la estrategia con las piezas que produce Fede.</div><div class="rc-metric">Sync semanal · brief por campaña</div></div>
-        <div class="rc"><div class="rc-head"><div class="rc-num">07</div><div class="rc-pill">Partner</div></div><div class="rc-name">Marcas personales</div><div class="rc-desc">Facu, Fede, Juana. Motor de tráfico del ecosistema.</div><div class="rc-metric">Plan personal · followers · leads</div></div>
-        <div class="rc"><div class="rc-head"><div class="rc-num">08</div><div class="rc-pill">Partner</div></div><div class="rc-name">Visión y mejoras</div><div class="rc-desc">Hacia dónde va el área y qué se mejora este Q.</div><div class="rc-metric">Visión · 1-3 mejoras · transición</div></div>
-      </div>
-    </div>
-    <div class="slide-footer"><div class="fl"><svg viewBox="0 0 200 200"><path fill="currentColor" d="M100 0 L108 92 L200 100 L108 108 L100 200 L92 108 L0 100 L92 92 Z"/></svg><span>Growth & Marketing · Q3 2026</span></div><div class="fn">XII / 13 · 12</div></div>
-  </section>
-
-  <section class="slide dark">
+<section class="slide dark">
     <div class="slide-inner">
       <div class="slide-tag">XII · Cierre</div>
       <div class="cierre-grid">
@@ -7774,7 +7751,7 @@ html, body {
           </div>
           <div class="meta-row">
             <span class="meta-lbl">Responsabilidades del área</span>
-            <span class="meta-val italic-blue">7 frentes</span>
+            <span class="meta-val italic-blue">6 frentes</span>
           </div>
         </div>
       </div>
@@ -8112,51 +8089,7 @@ html, body {
   <!-- ============================================
        09 · RESP 07 — VISIÓN Y MEJORAS
        ============================================ -->
-  <section class="slide">
-    <img class="bg-star" src="assets/stickers/star-archer.png" alt="" aria-hidden="true" />
-    <div class="slide-inner">
-      <div class="slide-tag">VIII · Responsabilidad 07 de 07</div>
-      <div class="resp-layout">
-        <div class="resp-left">
-          <div class="resp-badge">Comercial</div>
-          <div class="resp-num">07</div>
-          <div class="resp-name">Visión del área y mejoras del Q</div>
-        </div>
-        <div class="resp-right">
-          <div>
-            <div class="block-lbl">Qué significa</div>
-            <div class="block-text">
-              Como cualquier área de Cáscara, los responsables presentan cada trimestre la <strong>visión del área</strong> (hacia dónde queremos que vaya) y <strong>las mejoras concretas</strong> a implementar en el Q (procesos, herramientas, capacitación, equipo). Comercial recién está armándose: la visión es especialmente importante porque define qué tipo de área vamos a construir.
-            </div>
-          </div>
-          <div>
-            <div class="block-lbl">Qué implica en la práctica</div>
-            <div class="block-text">
-              Al inicio del Q se entrega la visión del área para los próximos 6-12 meses (qué nivel de profesionalización queremos, qué tamaño de equipo, qué tipo de proceso). Y entre 1 y 3 mejoras estructurales del trimestre. Para el B2B, una de las mejoras prioritarias es identificar al responsable definitivo de la vertical para que Facu deje de ser interino.
-            </div>
-          </div>
-          <div class="measure-card">
-            <div class="measure-lbl">Cómo se mide</div>
-            <ul>
-              <li>Visión del área documentada por cada vertical antes del fin de la semana 2.</li>
-              <li>Entre 1 y 3 mejoras comprometidas por vertical al inicio del Q.</li>
-              <li>Mejoras implementadas o con avance documentado al cierre del Q.</li>
-              <li>Candidato a director definitivo del B2B identificado antes del fin del Q.</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="slide-footer">
-      <div class="fl">
-        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M100 0 L108 92 L200 100 L108 108 L100 200 L92 108 L0 100 L92 92 Z"/></svg>
-        <span>Comercial · Q3 2026</span>
-      </div>
-      <div class="fn">IX / 12 · 09</div>
-    </div>
-  </section>
-
-  <!-- ============================================
+<!-- ============================================
        10 · RESUMEN DE LAS 7
        ============================================ -->
   <section class="slide">
@@ -8844,7 +8777,7 @@ html, body {
           </div>
           <div class="meta-row">
             <span class="meta-lbl">Responsabilidades del área</span>
-            <span class="meta-val italic-blue">6 frentes</span>
+            <span class="meta-val italic-blue">5 frentes</span>
           </div>
         </div>
       </div>
@@ -9123,51 +9056,7 @@ html, body {
   <!-- ============================================
        08 · RESP 06 — VISIÓN Y MEJORAS
        ============================================ -->
-  <section class="slide">
-    <img class="bg-star" src="assets/stickers/star-archer.png" alt="" aria-hidden="true" />
-    <div class="slide-inner">
-      <div class="slide-tag">VII · Responsabilidad 06 de 06</div>
-      <div class="resp-layout">
-        <div class="resp-left">
-          <div class="resp-badge">Admin & Finanzas</div>
-          <div class="resp-num">06</div>
-          <div class="resp-name">Visión del área y mejoras del Q</div>
-        </div>
-        <div class="resp-right">
-          <div>
-            <div class="block-lbl">Qué significa</div>
-            <div class="block-text">
-              Como cualquier área de Cáscara, el director presenta cada trimestre <strong>la visión del área</strong> (hacia dónde queremos que vaya) y <strong>las mejoras concretas</strong> que se va a implementar en el Q (procesos, herramientas, automatizaciones, profesionalización). Admin & Finanzas no escapa a esto: tiene que evolucionar como cualquier otro sector.
-            </div>
-          </div>
-          <div>
-            <div class="block-lbl">Qué implica en la práctica</div>
-            <div class="block-text">
-              Al inicio del Q se entrega: la visión del área para los próximos 6-12 meses (qué tipo de área queremos ser), y entre 1 y 3 mejoras estructurales para implementar en el trimestre. Pueden ser herramientas nuevas (software contable, dashboards), procesos rediseñados, automatizaciones, capacitación del equipo, o pasos hacia profesionalizar el área (incluyendo la búsqueda del director definitivo).
-            </div>
-          </div>
-          <div class="measure-card">
-            <div class="measure-lbl">Cómo se mide</div>
-            <ul>
-              <li>Visión del área documentada y compartida antes del fin de la semana 2.</li>
-              <li>Entre 1 y 3 mejoras comprometidas al inicio del Q con responsable y fecha.</li>
-              <li>Mejoras implementadas o con avance documentado al cierre del Q.</li>
-              <li>Si una mejora no se logró, el motivo queda registrado para el próximo plan.</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="slide-footer">
-      <div class="fl">
-        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M100 0 L108 92 L200 100 L108 108 L100 200 L92 108 L0 100 L92 92 Z"/></svg>
-        <span>Admin & Finanzas · Q3 2026</span>
-      </div>
-      <div class="fn">VIII / 11 · 08</div>
-    </div>
-  </section>
-
-  <!-- ============================================
+<!-- ============================================
        09 · RESUMEN DE LAS 6
        ============================================ -->
   <section class="slide">
@@ -9841,7 +9730,7 @@ html, body {
           </div>
           <div class="meta-row">
             <span class="meta-lbl">Responsabilidades del área</span>
-            <span class="meta-val italic-blue">7 frentes</span>
+            <span class="meta-val italic-blue">6 frentes</span>
           </div>
         </div>
       </div>
@@ -10107,95 +9996,7 @@ html, body {
   </section>
 
   <!-- 08 · RESP 06 — SOPORTE A LAS ÁREAS -->
-  <section class="slide">
-    <img class="bg-star" src="assets/stickers/star-archer.png" alt="" aria-hidden="true" />
-    <div class="slide-inner">
-      <div class="slide-tag">VII · Responsabilidad 06 de 07</div>
-      <div class="resp-layout">
-        <div class="resp-left">
-          <div class="resp-badge">Operaciones</div>
-          <div class="resp-num">06</div>
-          <div class="resp-name">Soporte de herramientas e informes a las áreas</div>
-        </div>
-        <div class="resp-right">
-          <div>
-            <div class="block-lbl">Qué significa</div>
-            <div class="block-text">
-              Cada área de Cáscara depende de herramientas (Calendly, Airtable, Notion, integraciones) que Operaciones mantiene. Cuando un área necesita un dashboard, un reporte cruzado o configurar una herramienta nueva, <strong>Operaciones la acompaña con el setup técnico y los datos</strong>. No es servicio técnico permanente: es soporte estructural para que cada área pueda enfocarse en lo suyo.
-            </div>
-          </div>
-          <div>
-            <div class="block-lbl">Qué implica en la práctica</div>
-            <div class="block-text">
-              Pedidos de herramientas o reportes entran por un canal definido y tienen una respuesta acordada. Operaciones entrega dashboards o vistas cuando un área lo pide, con datos consistentes con la base. Cuando una herramienta nueva entra al ecosistema, Operaciones lidera el setup y la capacitación mínima del equipo.
-            </div>
-          </div>
-          <div class="measure-card">
-            <div class="measure-lbl">Cómo se mide</div>
-            <ul>
-              <li>Canal único de pedidos definido y comunicado antes del fin de la semana 2.</li>
-              <li>SLA de respuesta a pedidos acordado y cumplido durante el Q.</li>
-              <li>Dashboards o vistas entregadas para cada área que lo necesite.</li>
-              <li>Cada herramienta nueva con setup y capacitación documentados.</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="slide-footer">
-      <div class="fl">
-        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M100 0 L108 92 L200 100 L108 108 L100 200 L92 108 L0 100 L92 92 Z"/></svg>
-        <span>Operaciones · Q3 2026</span>
-      </div>
-      <div class="fn">VIII / 12 · 08</div>
-    </div>
-  </section>
-
-  <!-- 09 · RESP 07 — VISIÓN Y MEJORAS -->
-  <section class="slide dark">
-    <div class="slide-inner">
-      <div class="slide-tag">VIII · Responsabilidad 07 de 07</div>
-      <div class="resp-layout">
-        <div class="resp-left">
-          <div class="resp-badge">Operaciones</div>
-          <div class="resp-num">07</div>
-          <div class="resp-name">Visión del área y mejoras del Q</div>
-        </div>
-        <div class="resp-right">
-          <div>
-            <div class="block-lbl">Qué significa</div>
-            <div class="block-text">
-              Como cualquier área de Cáscara, Teo presenta cada trimestre la <strong>visión del área</strong> (hacia dónde queremos que vaya Operaciones) y <strong>las mejoras estructurales del Q</strong>. Acá entran los proyectos de fondo: rediseñar una herramienta, automatizar un proceso manual, profesionalizar un sector, sumar perfiles.
-            </div>
-          </div>
-          <div>
-            <div class="block-lbl">Qué implica en la práctica</div>
-            <div class="block-text">
-              Al inicio del Q se entrega la visión para los próximos 6-12 meses (qué tipo de área de operaciones queremos) y entre 1 y 3 mejoras estructurales del trimestre. Cada mejora tiene responsable y fecha. Al cierre del Q se documenta qué se implementó, qué quedó pendiente y por qué.
-            </div>
-          </div>
-          <div class="measure-card">
-            <div class="measure-lbl">Cómo se mide</div>
-            <ul>
-              <li>Visión del área documentada antes del fin de la semana 2.</li>
-              <li>Entre 1 y 3 mejoras comprometidas con responsable y fecha.</li>
-              <li>Mejoras implementadas o con avance documentado al cierre del Q.</li>
-              <li>Si una mejora no se logró, el motivo queda registrado para el próximo plan.</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="slide-footer">
-      <div class="fl">
-        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M100 0 L108 92 L200 100 L108 108 L100 200 L92 108 L0 100 L92 92 Z"/></svg>
-        <span style="color:rgba(255,255,255,0.7)">Operaciones · Q3 2026</span>
-      </div>
-      <div class="fn" style="color:rgba(255,255,255,0.75)">IX / 12 · 09</div>
-    </div>
-  </section>
-
-  <!-- 10 · RESUMEN -->
+<!-- 10 · RESUMEN -->
   <section class="slide">
     <img class="bg-star" src="assets/stickers/star-archer.png" alt="" aria-hidden="true" />
     <div class="slide-inner">
@@ -10866,7 +10667,7 @@ html, body {
           </div>
           <div class="meta-row">
             <span class="meta-lbl">Responsabilidades del área</span>
-            <span class="meta-val italic-blue">6 frentes</span>
+            <span class="meta-val italic-blue">5 frentes</span>
           </div>
         </div>
       </div>
@@ -11082,96 +10883,7 @@ html, body {
       <div class="fn">V / 11 · 06</div>
     </div>
   </section>
-
-  <section class="slide">
-    <img class="bg-star" src="assets/stickers/star-archer.png" alt="" aria-hidden="true" />
-    <div class="slide-inner">
-      <div class="slide-tag">VI · Responsabilidad 05 de 06</div>
-      <div class="resp-layout">
-        <div class="resp-left">
-          <div class="resp-badge">Capital Humano</div>
-          <div class="resp-num">05</div>
-          <div class="resp-name">Cultura y clima del ecosistema</div>
-        </div>
-        <div class="resp-right">
-          <div>
-            <div class="block-lbl">Qué significa</div>
-            <div class="block-text">
-              Capital Humano cuida la cultura: la forma en que se trabaja, se comunica y se relaciona la gente dentro del ecosistema. Una cultura clara hace que las personas correctas se queden y las que no encajan se noten rápido. Facu es el guardián de que la cultura de Cáscara no se diluya a medida que el equipo crece.
-            </div>
-          </div>
-          <div>
-            <div class="block-lbl">Qué implica en la práctica</div>
-            <div class="block-text">
-              Mantener vivos los valores y la forma de trabajo a medida que entra gente nueva. Detectar tensiones de equipo antes de que escalen. Asegurar que la comunicación entre áreas sea sana. La cultura no se declama: se sostiene en las decisiones del día a día.
-            </div>
-          </div>
-          <div class="measure-card">
-            <div class="measure-lbl">Cómo se mide</div>
-            <ul>
-              <li>Valores y forma de trabajo comunicados a todo el equipo.</li>
-              <li>Tensiones de equipo detectadas y abordadas a tiempo.</li>
-              <li>Clima general del ecosistema sano durante el Q.</li>
-              <li>Las personas nuevas entienden la cultura desde el inicio.</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="slide-footer">
-      <div class="fl">
-        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M100 0 L108 92 L200 100 L108 108 L100 200 L92 108 L0 100 L92 92 Z"/></svg>
-        <span>Capital Humano · Q2 2026</span>
-      </div>
-      <div class="fn">VI / 11 · 07</div>
-    </div>
-  </section>
-
-  <section class="slide dark">
-    
-    <div class="slide-inner">
-      <div class="slide-tag">VII · Responsabilidad 06 de 06</div>
-      <div class="resp-layout">
-        <div class="resp-left">
-          <div class="resp-badge">Capital Humano</div>
-          <div class="resp-num">06</div>
-          <div class="resp-name">Visión del área y mejoras del Q</div>
-        </div>
-        <div class="resp-right">
-          <div>
-            <div class="block-lbl">Qué significa</div>
-            <div class="block-text">
-              Como toda área de Cáscara, Capital Humano presenta cada trimestre la visión del área (hacia dónde queremos que vaya la gestión de personas del ecosistema) y las mejoras estructurales del Q. Acá entran los proyectos de fondo: profesionalizar el reclutamiento, armar un sistema de onboarding, definir planes de carrera.
-            </div>
-          </div>
-          <div>
-            <div class="block-lbl">Qué implica en la práctica</div>
-            <div class="block-text">
-              Al inicio del Q se entrega la visión para los próximos 6-12 meses (qué tipo de área de Capital Humano queremos) y entre 1 y 3 mejoras estructurales del trimestre. Cada mejora tiene responsable y fecha. Al cierre del Q se documenta qué se implementó y qué quedó pendiente.
-            </div>
-          </div>
-          <div class="measure-card">
-            <div class="measure-lbl">Cómo se mide</div>
-            <ul>
-              <li>Visión del área documentada antes del fin de la semana 2.</li>
-              <li>Entre 1 y 3 mejoras comprometidas con responsable y fecha.</li>
-              <li>Mejoras implementadas o con avance documentado al cierre del Q.</li>
-              <li>Si una mejora no se logró, el motivo queda registrado.</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="slide-footer">
-      <div class="fl">
-        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M100 0 L108 92 L200 100 L108 108 L100 200 L92 108 L0 100 L92 92 Z"/></svg>
-        <span style="color:rgba(255,255,255,0.7)">Capital Humano · Q2 2026</span>
-      </div>
-      <div class="fn" style="color:rgba(255,255,255,0.75)">VII / 11 · 08</div>
-    </div>
-  </section>
-
-  <section class="slide">
+<section class="slide">
     <img class="bg-star" src="assets/stickers/star-archer.png" alt="" aria-hidden="true" />
     <div class="slide-inner">
       <div class="slide-tag">VIII · Resumen del área</div>

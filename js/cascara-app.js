@@ -1077,8 +1077,8 @@ const CascaraForm = {
     row.dataset.kpiId = kpi.id;
     row.innerHTML = `
       <input type="text" class="f-input" placeholder="Nombre del KPI" data-target="kpi" data-field="name" />
-      <input type="text" class="f-input" placeholder="Objetivo" data-target="kpi" data-field="target" />
-      <input type="text" class="f-input" placeholder="Fecha" data-target="kpi" data-field="deadline" />
+      <input type="text" class="f-input" placeholder="N° objetivo (ej: 100 o 20%)" data-target="kpi" data-field="target" inputmode="numeric" />
+      <input type="date" class="f-input" data-target="kpi" data-field="deadline" />
       <button class="f-kpi-remove" type="button">×</button>
     `;
     row.querySelector('[data-field="name"]').value = kpi.name || '';
@@ -2452,37 +2452,10 @@ const CascaraPresentations = {
   },
 
   async refreshMarks() {
-    this.ensureStyle();
-    if (!Cascara.state.quarter) return;
-    // Saber qué áreas tienen plan aprobado para el Q actual
-    const { data: plans } = await Cascara.client.from('plans')
-      .select('id, status, area:areas(slug)')
-      .eq('quarter_id', Cascara.state.quarter.id)
-      .in('status', ['approved', 'in_progress', 'closed']);
-    const approvedSlugs = new Set((plans || []).map(p => p.area?.slug).filter(Boolean));
-
-    // preso-mini en home
-    document.querySelectorAll('.preso-mini').forEach(el => {
-      const onclick = el.getAttribute('onclick') || '';
-      const m = onclick.match(/openPreso\('([^']+)'\)/);
-      const key = m?.[1];
+    // Las 7 presentaciones son la descripción real de cada área (no ejemplos).
+    // Limpiamos cualquier marca residual y no agregamos badges.
+    document.querySelectorAll('.preso-mini, .preso-card').forEach(el => {
       el.classList.remove('is-example', 'is-approved');
-      if (!key) return;
-      const areaSlug = this.presoKeyToAreaSlug(key);
-      if (approvedSlugs.has(areaSlug)) el.classList.add('is-approved');
-      else el.classList.add('is-example');
-    });
-
-    // preso-card en view-presentaciones
-    document.querySelectorAll('.preso-card').forEach(el => {
-      const onclick = el.getAttribute('onclick') || '';
-      const m = onclick.match(/openPreso\('([^']+)'\)/);
-      const key = m?.[1];
-      el.classList.remove('is-example', 'is-approved');
-      if (!key) return;
-      const areaSlug = this.presoKeyToAreaSlug(key);
-      if (approvedSlugs.has(areaSlug)) el.classList.add('is-approved');
-      else el.classList.add('is-example');
     });
   },
 
@@ -2692,7 +2665,7 @@ const CascaraOfficialPreso = {
                   <div class="op-kpi-row">
                     <div class="op-kpi-name">${this.escape(k.name || '—')}</div>
                     <div class="op-kpi-tgt">${this.escape(k.target || '')}</div>
-                    <div class="op-kpi-due">${this.escape(k.deadline || '')}</div>
+                    <div class="op-kpi-due">${this.formatDeadline(k.deadline)}</div>
                   </div>
                 `).join('')}
               </div>` : ''}
@@ -2814,6 +2787,12 @@ const CascaraOfficialPreso = {
 
   escape(s) {
     return (s == null ? '' : String(s)).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+  },
+  formatDeadline(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d)) return iso;
+    return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
   },
 };
 window.CascaraOfficialPreso = CascaraOfficialPreso;
@@ -3148,27 +3127,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.addEventListener('cascara:user-changed', () => injectNavLinks());
   if (Cascara.state.user) setTimeout(injectNavLinks, 300);
 
-  // Interceptar openPreso para rutear a oficial vs ejemplo
-  const tryHookOpenPreso = () => {
-    if (typeof window.openPreso !== 'function') {
-      setTimeout(tryHookOpenPreso, 200);
-      return;
-    }
-    if (window.openPreso._cascaraHooked) return;
-    const originalOpenPreso = window.openPreso;
-    window.openPreso = async function(key) {
-      const areaSlug = CascaraPresentations.presoKeyToAreaSlug(key);
-      const opened = await CascaraPresentations.openOfficialForArea(areaSlug);
-      if (opened) {
-        window.goTo('official-preso');
-      } else {
-        CascaraPresentations.showBanner();
-        originalOpenPreso(key);
-      }
-    };
-    window.openPreso._cascaraHooked = true;
-  };
-  setTimeout(tryHookOpenPreso, 200);
+  // Las 7 presentaciones son las descripciones de las áreas (no auto-generadas).
+  // No interceptamos openPreso ni mostramos banner.
 
   // Refrescar marcas Ejemplo/Oficial + cards del home cuando esté lista
   setTimeout(() => {
