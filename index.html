@@ -6,8 +6,74 @@
 <title>Cáscara · Sistema de Planificación</title>
 <style>
 /* ============================================================
-   PENTÁGONO / CÁSCARA — Sistema de diseño base
+   CÁSCARA — Sistema de diseño base
    ============================================================ */
+
+/* === Fonts oficiales Cáscara === */
+@font-face {
+  font-family: 'Helvetica Neue LT Std';
+  src: url('assets/fonts/HelveticaNeueLTStd-Lt.otf') format('opentype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Helvetica Neue LT Std';
+  src: url('assets/fonts/HelveticaNeueLTStd-Md.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Helvetica Neue LT Std';
+  src: url('assets/fonts/HelveticaNeueLTStd-Bd.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Helvetica Neue LT Std';
+  src: url('assets/fonts/HelveticaNeueLTStd-Hv.otf') format('opentype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Helvetica Neue LT Std';
+  src: url('assets/fonts/HelveticaNeueLTStd-Blk.otf') format('opentype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Helvetica Neue LT Std';
+  src: url('assets/fonts/HelveticaNeueLTStd-It.otf') format('opentype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Helvetica Neue LT Std';
+  src: url('assets/fonts/HelveticaNeueLTStd-MdIt.otf') format('opentype');
+  font-weight: 500;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Helvetica Neue LT Std';
+  src: url('assets/fonts/HelveticaNeueLTStd-BdIt.otf') format('opentype');
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Redaction';
+  src: url('assets/fonts/Redaction10-Italic.otf') format('opentype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
 :root {
   --cream: #DBD8D3;
   --cream-soft: #E6E3DE;
@@ -21,8 +87,8 @@
   --blue-glow: rgba(107,122,255,0.14);
   --line: rgba(0,0,0,0.08);
   --line-strong: rgba(0,0,0,0.14);
-  --font-sans: 'Helvetica Neue', Helvetica, Inter, system-ui, sans-serif;
-  --font-serif: 'Redaction', 'Times New Roman', Georgia, serif;
+  --font-sans: 'Helvetica Neue LT Std', 'Helvetica Neue', Helvetica, Inter, system-ui, sans-serif;
+  --font-serif: 'Redaction', 'Helvetica Neue LT Std', 'Times New Roman', Georgia, serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -3221,6 +3287,147 @@ html, body {
   background: var(--cream);
 }
 
+/* ============================================================
+   PREMIUM POLISH LAYER · sistema visual refinado
+   ============================================================ */
+
+/* Tipografía global · jerarquía y legibilidad */
+html, body {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+}
+
+/* Scale tipográfica refinada (modular scale 1.25) */
+.t-display { font-size: clamp(40px, 5vw, 64px); font-weight: 800; letter-spacing: -0.025em; line-height: 0.95; }
+.t-h1      { font-size: clamp(28px, 3vw, 38px); font-weight: 700; letter-spacing: -0.018em; line-height: 1.08; }
+.t-h2      { font-size: clamp(20px, 2vw, 24px); font-weight: 700; letter-spacing: -0.012em; line-height: 1.18; }
+.t-h3      { font-size: 16px; font-weight: 700; letter-spacing: -0.005em; line-height: 1.25; }
+.t-body    { font-size: 14px; font-weight: 400; line-height: 1.55; letter-spacing: 0; }
+.t-body-lg { font-size: 15.5px; font-weight: 400; line-height: 1.6; }
+.t-caption { font-size: 12px; font-weight: 500; line-height: 1.45; }
+.t-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
+.t-serif   { font-family: var(--font-serif); font-style: italic; font-weight: 400; }
+
+/* Legibilidad mejorada en bloques de texto */
+p, li, .block-text, .f-textarea, .f-input, .ad-sub, .ci-sub {
+  letter-spacing: -0.002em;
+}
+
+/* Headings de form: más legibles, jerarquía clara */
+.f-section-title { font-weight: 700 !important; letter-spacing: -0.018em !important; }
+.f-field-label { font-weight: 600 !important; letter-spacing: 0.005em !important; color: var(--ink) !important; }
+.f-field-help { font-size: 12.5px !important; line-height: 1.5 !important; color: var(--ink-muted) !important; letter-spacing: 0 !important; }
+.f-textarea, .f-input { font-family: var(--font-sans); font-weight: 400; line-height: 1.5; }
+.f-textarea { padding: 12px 14px !important; }
+.f-textarea:focus, .f-input:focus { border-color: var(--blue) !important; outline: none; box-shadow: 0 0 0 3px rgba(16,6,159,0.08); }
+
+/* Transiciones de view: fade suave */
+.view { transition: opacity 0.32s cubic-bezier(0.4, 0, 0.2, 1); }
+.view:not(.active) { opacity: 0; pointer-events: none; }
+.view.active { opacity: 1; }
+
+/* Cards y botones con feel premium */
+.hcard, .ad-plan-card, .preso-card, .preso-mini {
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+              background 0.18s ease,
+              border-color 0.18s ease;
+  will-change: transform;
+}
+
+/* Botones generales */
+button, .tb-link, .fg-pill, .f-kpi-add, .f-resp-add, .f-dep-add, .f-milestone-add,
+.f-import-btn, .ci-start-btn, .ci-submit, .ci-cancel {
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease,
+              transform 0.12s ease, box-shadow 0.18s ease;
+  font-family: var(--font-sans);
+}
+
+/* Microinteracciones — press */
+button:active, .hcard:active, .ad-plan-card:active, .preso-card:active, .preso-mini:active {
+  transform: translateY(0) scale(0.985);
+  transition-duration: 0.08s;
+}
+
+/* Login: estado disabled hasta que esté listo */
+.tb-user.is-loading, .person-tile.is-loading,
+body.cascara-not-ready .person-tile,
+body.cascara-not-ready .login-tile-grid button {
+  opacity: 0.45;
+  pointer-events: none;
+  cursor: wait;
+}
+
+/* Loader spinner global · sutil */
+.cascara-loading {
+  position: fixed; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 99999;
+  width: 32px; height: 32px;
+  border: 2.5px solid rgba(16,6,159,0.15);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: cascara-spin 0.85s linear infinite;
+}
+@keyframes cascara-spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+
+/* Pill de guardado más suave */
+#cascara-save-pill {
+  font-family: var(--font-sans) !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.01em !important;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* Scrollbar branded */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(16,6,159,0.18); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: rgba(16,6,159,0.32); background-clip: padding-box; border: 2px solid transparent; }
+
+/* Texto seleccionado branded */
+::selection { background: var(--blue); color: var(--cream); }
+
+/* Animación de entrada para slides/cards (entry stagger) */
+@keyframes cascara-fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.view.active .hcard,
+.view.active .ad-plan-card,
+.view.active .f-section,
+.view.active .ci-project,
+.view.active .ci-start-card {
+  animation: cascara-fade-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+.view.active .ad-plan-card:nth-child(1) { animation-delay: 0.04s; }
+.view.active .ad-plan-card:nth-child(2) { animation-delay: 0.08s; }
+.view.active .ad-plan-card:nth-child(3) { animation-delay: 0.12s; }
+.view.active .ad-plan-card:nth-child(4) { animation-delay: 0.16s; }
+.view.active .ad-plan-card:nth-child(5) { animation-delay: 0.20s; }
+.view.active .ad-plan-card:nth-child(6) { animation-delay: 0.24s; }
+.view.active .ad-plan-card:nth-child(7) { animation-delay: 0.28s; }
+
+.view.active .hcard.mine     { animation-delay: 0.05s; }
+.view.active .hcard.others   { animation-delay: 0.12s; }
+.view.active .hcard.presos   { animation-delay: 0.20s; }
+
+/* Greeting + tb-brand entrada */
+@keyframes cascara-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.view.active .top-bar, .view.active .greeting, .view.active .ad-head-row, .view.active .ci-head-row {
+  animation: cascara-fade-in 0.5s ease-out backwards;
+}
+
 </style>
 </head>
 <body>
@@ -4764,8 +4971,8 @@ function closePreso() {
   --blue-glow: rgba(107,122,255,0.14);
   --line: rgba(0,0,0,0.08);
   --line-strong: rgba(0,0,0,0.14);
-  --font-sans: 'Helvetica Neue', Helvetica, Inter, system-ui, sans-serif;
-  --font-serif: 'Redaction', 'Times New Roman', Georgia, serif;
+  --font-sans: 'Helvetica Neue LT Std', 'Helvetica Neue', Helvetica, Inter, system-ui, sans-serif;
+  --font-serif: 'Redaction', 'Helvetica Neue LT Std', 'Times New Roman', Georgia, serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -5693,8 +5900,8 @@ show(0);
   --blue-glow: rgba(107,122,255,0.14);
   --line: rgba(0,0,0,0.08);
   --line-strong: rgba(0,0,0,0.14);
-  --font-sans: 'Helvetica Neue', Helvetica, Inter, system-ui, sans-serif;
-  --font-serif: 'Redaction', 'Times New Roman', Georgia, serif;
+  --font-sans: 'Helvetica Neue LT Std', 'Helvetica Neue', Helvetica, Inter, system-ui, sans-serif;
+  --font-serif: 'Redaction', 'Helvetica Neue LT Std', 'Times New Roman', Georgia, serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -6698,8 +6905,8 @@ show(0);
   --blue-glow: rgba(107,122,255,0.14);
   --line: rgba(0,0,0,0.08);
   --line-strong: rgba(0,0,0,0.14);
-  --font-sans: 'Helvetica Neue', Helvetica, Inter, system-ui, sans-serif;
-  --font-serif: 'Redaction', 'Times New Roman', Georgia, serif;
+  --font-sans: 'Helvetica Neue LT Std', 'Helvetica Neue', Helvetica, Inter, system-ui, sans-serif;
+  --font-serif: 'Redaction', 'Helvetica Neue LT Std', 'Times New Roman', Georgia, serif;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; background: var(--cream); color: var(--ink); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; overflow: hidden; }
@@ -7209,8 +7416,8 @@ show(0);
   --blue-glow: rgba(107,122,255,0.14);
   --line: rgba(0,0,0,0.08);
   --line-strong: rgba(0,0,0,0.14);
-  --font-sans: 'Helvetica Neue', Helvetica, Inter, system-ui, sans-serif;
-  --font-serif: 'Redaction', 'Times New Roman', Georgia, serif;
+  --font-sans: 'Helvetica Neue LT Std', 'Helvetica Neue', Helvetica, Inter, system-ui, sans-serif;
+  --font-serif: 'Redaction', 'Helvetica Neue LT Std', 'Times New Roman', Georgia, serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -8264,8 +8471,8 @@ show(0);
   --blue-glow: rgba(107,122,255,0.14);
   --line: rgba(0,0,0,0.08);
   --line-strong: rgba(0,0,0,0.14);
-  --font-sans: 'Helvetica Neue', Helvetica, Inter, system-ui, sans-serif;
-  --font-serif: 'Redaction', 'Times New Roman', Georgia, serif;
+  --font-sans: 'Helvetica Neue LT Std', 'Helvetica Neue', Helvetica, Inter, system-ui, sans-serif;
+  --font-serif: 'Redaction', 'Helvetica Neue LT Std', 'Times New Roman', Georgia, serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -9203,8 +9410,8 @@ show(0);
   --blue-glow: rgba(107,122,255,0.14);
   --line: rgba(0,0,0,0.08);
   --line-strong: rgba(0,0,0,0.14);
-  --font-sans: 'Helvetica Neue', Helvetica, Inter, system-ui, sans-serif;
-  --font-serif: 'Redaction', 'Times New Roman', Georgia, serif;
+  --font-sans: 'Helvetica Neue LT Std', 'Helvetica Neue', Helvetica, Inter, system-ui, sans-serif;
+  --font-serif: 'Redaction', 'Helvetica Neue LT Std', 'Times New Roman', Georgia, serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -9998,8 +10205,8 @@ html, body {
   --blue-glow: rgba(107,122,255,0.14);
   --line: rgba(0,0,0,0.08);
   --line-strong: rgba(0,0,0,0.14);
-  --font-sans: 'Helvetica Neue', Helvetica, Inter, system-ui, sans-serif;
-  --font-serif: 'Redaction', 'Times New Roman', Georgia, serif;
+  --font-sans: 'Helvetica Neue LT Std', 'Helvetica Neue', Helvetica, Inter, system-ui, sans-serif;
+  --font-serif: 'Redaction', 'Helvetica Neue LT Std', 'Times New Roman', Georgia, serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }

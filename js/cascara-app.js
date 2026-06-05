@@ -24,6 +24,8 @@ const Cascara = {
 
   // ---------- INIT ----------
   async init() {
+    // Bloquear la UI hasta que estemos listos
+    document.body.classList.add('cascara-not-ready');
     if (!window.supabase) {
       console.error('[Cascara] Supabase SDK no cargó');
       return;
@@ -53,6 +55,8 @@ const Cascara = {
 
     this.state.ready = true;
     this.setupSaveIndicator();
+    // UI ya está lista para recibir clicks
+    document.body.classList.remove('cascara-not-ready');
     document.dispatchEvent(new CustomEvent('cascara:ready'));
   },
 
@@ -1786,11 +1790,14 @@ const CascaraAdmin = {
           <div class="ad-head">
             <div class="ad-eyebrow">Cáscara · Sistema de Planificación</div>
             <h1 class="ad-title">Dashboard <em>global.</em></h1>
-            <div class="ad-sub">Status de los planes del Q <span id="ad-quarter-name">—</span>. Aprobás desde acá.</div>
+            <div class="ad-sub">Status de los planes del <span id="ad-quarter-name">—</span>. Comentás y aprobás desde acá.</div>
           </div>
           <img src="assets/brand/cascara-jinete-azul.png" class="ad-logo" alt="Cáscara" />
         </div>
+        <div class="ad-stats" id="ad-stats"></div>
+        <div class="ad-section-title">Las 7 áreas</div>
         <div class="ad-grid" id="ad-grid">Cargando…</div>
+        <div class="ad-activity-wrap" id="ad-activity-wrap"></div>
       </div>
     `;
     document.body.appendChild(v);
@@ -1812,7 +1819,37 @@ const CascaraAdmin = {
       #view-admin-dashboard .ad-title { font-size: 56px; font-weight: 800; margin: 0 0 10px; color: var(--ink, #0A0A0C); letter-spacing: -0.025em; line-height: 0.95; }
       #view-admin-dashboard .ad-title em { font-family: 'Redaction', 'Times New Roman', Georgia, serif; font-style: italic; color: #10069F; font-weight: 400; }
       #view-admin-dashboard .ad-sub { font-size: 14px; color: var(--ink-muted, #52525A); }
+      #view-admin-dashboard .ad-section-title { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-muted); margin: 30px 0 14px; }
       #view-admin-dashboard .ad-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+
+      /* Stats top bar */
+      #view-admin-dashboard .ad-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+      .ad-stat {
+        background: rgba(255,255,255,0.55); border: 1px solid rgba(0,0,0,0.06);
+        border-radius: 14px; padding: 18px 20px;
+        display: flex; flex-direction: column; gap: 4px;
+      }
+      .ad-stat-num { font-size: 32px; font-weight: 800; letter-spacing: -0.02em; color: var(--ink); line-height: 1; }
+      .ad-stat-num em { font-family: var(--font-serif); font-style: italic; font-weight: 400; color: var(--ink-muted); font-size: 18px; margin-left: 2px; }
+      .ad-stat-lbl { font-size: 10.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-muted); margin-top: 6px; }
+      .ad-stat.highlight .ad-stat-num { color: var(--blue); }
+      .ad-stat.warning .ad-stat-num { color: #C39A00; }
+
+      /* Activity feed */
+      #view-admin-dashboard .ad-activity-wrap { margin-top: 30px; }
+      .ad-activity-card {
+        background: rgba(255,255,255,0.5); border: 1px solid rgba(0,0,0,0.06);
+        border-radius: 14px; padding: 8px 4px;
+      }
+      .ad-activity-item {
+        padding: 12px 18px; border-bottom: 1px solid rgba(0,0,0,0.05);
+        display: flex; align-items: baseline; gap: 12px; font-size: 13px;
+      }
+      .ad-activity-item:last-child { border-bottom: none; }
+      .ad-activity-when { font-size: 11px; color: var(--ink-muted); font-family: var(--font-serif); font-style: italic; flex-shrink: 0; min-width: 90px; }
+      .ad-activity-who { font-weight: 700; }
+      .ad-activity-what { color: var(--ink-soft); }
+      .ad-activity-area { background: rgba(16,6,159,0.08); color: var(--blue); padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; margin-left: auto; flex-shrink: 0; }
       .ad-plan-card {
         background: rgba(255,255,255,0.6); border: 1px solid rgba(0,0,0,0.07);
         border-radius: 18px; padding: 24px; cursor: pointer;
@@ -1854,6 +1891,38 @@ const CascaraAdmin = {
     const { data: areas } = await Cascara.client.from('areas').select('*').order('order_index');
     const plans = await Cascara.listAllPlansForQuarter();
     const plansByArea = new Map(plans.map(p => [p.area_id, p]));
+
+    // === Stats agregados ===
+    const totalAreas = (areas || []).length;
+    const plansStarted = plans.length;
+    const plansApproved = plans.filter(p => ['approved', 'in_progress', 'closed'].includes(p.status)).length;
+    const totalProjects = plans.reduce((sum, p) => sum + (p.projects_count || 0), 0);
+    const openComments = plans.reduce((sum, p) => sum + (p.comments_open || 0), 0);
+
+    const statsEl = document.getElementById('ad-stats');
+    if (statsEl) {
+      statsEl.innerHTML = `
+        <div class="ad-stat">
+          <div class="ad-stat-num">${plansStarted}<em>/${totalAreas}</em></div>
+          <div class="ad-stat-lbl">Áreas con plan iniciado</div>
+        </div>
+        <div class="ad-stat highlight">
+          <div class="ad-stat-num">${plansApproved}<em>/${totalAreas}</em></div>
+          <div class="ad-stat-lbl">Planes aprobados</div>
+        </div>
+        <div class="ad-stat">
+          <div class="ad-stat-num">${totalProjects}</div>
+          <div class="ad-stat-lbl">Proyectos cargados</div>
+        </div>
+        <div class="ad-stat ${openComments > 0 ? 'warning' : ''}">
+          <div class="ad-stat-num">${openComments}</div>
+          <div class="ad-stat-lbl">Comentarios sin resolver</div>
+        </div>
+      `;
+    }
+
+    // === Actividad reciente ===
+    this.renderActivity();
 
     grid.innerHTML = '';
     (areas || []).forEach((a, i) => {
@@ -1921,6 +1990,91 @@ const CascaraAdmin = {
       in_progress: 'En ejecución',
       closed: 'Cerrado',
     })[s] || s;
+  },
+
+  async renderActivity() {
+    const wrap = document.getElementById('ad-activity-wrap');
+    if (!wrap) return;
+    if (!Cascara.state.quarter) return;
+
+    // Combinar últimos: planes actualizados, comentarios, check-ins
+    const [{ data: plansRecent }, { data: commentsRecent }, { data: checkinsRecent }] = await Promise.all([
+      Cascara.client.from('plans').select('*, area:areas(name)').eq('quarter_id', Cascara.state.quarter.id).order('updated_at', { ascending: false }).limit(8),
+      Cascara.client.from('comments').select('*, plan:plans(area:areas(name))').order('created_at', { ascending: false }).limit(6),
+      Cascara.client.from('check_in_sessions').select('*, plan:plans(area:areas(name))').order('created_at', { ascending: false }).limit(4),
+    ]);
+
+    const events = [];
+    (plansRecent || []).forEach(p => {
+      events.push({
+        when: p.updated_at,
+        who: 'Plan',
+        what: `actualizado · status: ${this.statusLabel(p.status)}`,
+        area: p.area?.name,
+      });
+    });
+    (commentsRecent || []).forEach(c => {
+      events.push({
+        when: c.created_at,
+        who: c.author_name || 'Anon',
+        what: `comentó "${(c.text || '').slice(0, 80)}${(c.text || '').length > 80 ? '…' : ''}"`,
+        area: c.plan?.area?.name,
+      });
+    });
+    (checkinsRecent || []).forEach(s => {
+      events.push({
+        when: s.created_at,
+        who: s.author_name || 'Anon',
+        what: 'hizo un check-in del Q',
+        area: s.plan?.area?.name,
+      });
+    });
+
+    events.sort((a, b) => new Date(b.when) - new Date(a.when));
+    const top = events.slice(0, 10);
+
+    if (top.length === 0) {
+      wrap.innerHTML = `
+        <div class="ad-section-title">Actividad reciente</div>
+        <div class="ad-activity-card">
+          <div class="ad-activity-item">
+            <span class="ad-activity-when">—</span>
+            <span class="ad-activity-what">Sin actividad todavía. Cuando un Director cargue su plan o haga un check-in vas a verlo acá.</span>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    wrap.innerHTML = `
+      <div class="ad-section-title">Actividad reciente</div>
+      <div class="ad-activity-card">
+        ${top.map(e => `
+          <div class="ad-activity-item">
+            <span class="ad-activity-when">${this.timeAgo(e.when)}</span>
+            <span><span class="ad-activity-who">${this.escape(e.who)}</span> <span class="ad-activity-what">${this.escape(e.what)}</span></span>
+            ${e.area ? `<span class="ad-activity-area">${this.escape(e.area)}</span>` : ''}
+          </div>
+        `).join('')}
+      </div>
+    `;
+  },
+
+  timeAgo(iso) {
+    if (!iso) return '—';
+    const seconds = Math.floor((Date.now() - new Date(iso)) / 1000);
+    if (seconds < 60) return 'hace segundos';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `hace ${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `hace ${hours} h`;
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `hace ${days} d`;
+    return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' });
+  },
+
+  escape(s) {
+    return (s == null ? '' : String(s)).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
   },
 };
 
