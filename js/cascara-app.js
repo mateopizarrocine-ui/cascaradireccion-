@@ -4635,44 +4635,75 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 });
 
-function injectNavLinks() {
-  const toolbar = document.querySelector('.tb-actions') || document.querySelector('.toolbar');
-  if (!toolbar) {
-    // Buscar el contenedor de los tb-link
-    const sample = document.querySelector('.tb-link');
-    if (!sample) return;
-    const parent = sample.parentElement;
-    addNavLinksTo(parent);
-  } else {
-    addNavLinksTo(toolbar);
-  }
+// Helper: clickear la pill del usuario debe LIMPIAR la sesión cacheada y dejar
+// el login estático para elegir. Evita el bug de "loguearse" como el mismo user de antes.
+window.cascaraGoToLogin = function() {
+  try {
+    localStorage.removeItem('cascara_user_id');
+    localStorage.removeItem('cascara_view');
+  } catch (_) {}
+  if (window.Cascara) Cascara.logout?.();
+  // Resetear currentUser legacy también
+  if (typeof window.currentUser !== 'undefined') window.currentUser = null;
+  // Resetear el sub-state del login: mostrar selector, no la pantalla "Hola X"
+  if (typeof window.showLoginState === 'function') window.showLoginState('select');
+  // Forzar navegación a login
+  document.body.classList.remove('cascara-restoring');
+  if (window.goTo) window.goTo('login');
+};
+
+// Lock global para evitar races: si una corrida está en curso, las demás esperan
+let _navInjectInFlight = null;
+async function injectNavLinks() {
+  if (_navInjectInFlight) return _navInjectInFlight;
+  _navInjectInFlight = (async () => {
+    try {
+      // CRÍTICO: limpiar TODOS los containers que puedan tener nav-links viejos
+      document.querySelectorAll('.cascara-nav-link').forEach(el => el.remove());
+
+      const toolbar = document.querySelector('.tb-actions') || document.querySelector('.toolbar');
+      let container = toolbar;
+      if (!container) {
+        const sample = document.querySelector('.tb-link');
+        if (!sample) return;
+        container = sample.parentElement;
+      }
+
+      // Cachear isStrategyCouncil para no hacer await entre cleanups y adds
+      const isSC = await Cascara.isStrategyCouncil();
+      const isAdmin = Cascara.isAdmin();
+
+      // Volver a limpiar después del await por si entre medio otra cosa metió botones
+      document.querySelectorAll('.cascara-nav-link').forEach(el => el.remove());
+
+      // Audit Session (Strategy Council o Admin)
+      if (isSC || isAdmin) {
+        const auditBtn = document.createElement('button');
+        auditBtn.className = 'tb-link cascara-nav-link';
+        auditBtn.innerHTML = 'Audit Session <span class="arrow">→</span>';
+        auditBtn.onclick = () => window.goTo('audit-session');
+        container.insertBefore(auditBtn, container.firstChild);
+      }
+
+      if (isAdmin) {
+        const adminBtn = document.createElement('button');
+        adminBtn.className = 'tb-link cascara-nav-link';
+        adminBtn.innerHTML = 'Dashboard global <span class="arrow">→</span>';
+        adminBtn.onclick = () => window.goTo('admin-dashboard');
+        container.insertBefore(adminBtn, container.firstChild);
+      }
+
+      const ciBtn = document.createElement('button');
+      ciBtn.className = 'tb-link cascara-nav-link';
+      ciBtn.innerHTML = 'Mis check-ins <span class="arrow">→</span>';
+      ciBtn.onclick = () => window.goTo('check-ins');
+      container.insertBefore(ciBtn, container.firstChild);
+    } finally {
+      _navInjectInFlight = null;
+    }
+  })();
+  return _navInjectInFlight;
 }
 
-async function addNavLinksTo(container) {
-  // Limpiar previos
-  container.querySelectorAll('.cascara-nav-link').forEach(el => el.remove());
-
-  // Audit Session (Strategy Council o Admin)
-  const isSC = await Cascara.isStrategyCouncil();
-  if (isSC || Cascara.isAdmin()) {
-    const auditBtn = document.createElement('button');
-    auditBtn.className = 'tb-link cascara-nav-link';
-    auditBtn.innerHTML = 'Audit Session <span class="arrow">→</span>';
-    auditBtn.onclick = () => window.goTo('audit-session');
-    container.insertBefore(auditBtn, container.firstChild);
-  }
-
-  if (Cascara.isAdmin()) {
-    const adminBtn = document.createElement('button');
-    adminBtn.className = 'tb-link cascara-nav-link';
-    adminBtn.innerHTML = 'Dashboard global <span class="arrow">→</span>';
-    adminBtn.onclick = () => window.goTo('admin-dashboard');
-    container.insertBefore(adminBtn, container.firstChild);
-  }
-
-  const ciBtn = document.createElement('button');
-  ciBtn.className = 'tb-link cascara-nav-link';
-  ciBtn.innerHTML = 'Mis check-ins <span class="arrow">→</span>';
-  ciBtn.onclick = () => window.goTo('check-ins');
-  container.insertBefore(ciBtn, container.firstChild);
-}
+// Compat: addNavLinksTo era el nombre viejo
+const addNavLinksTo = injectNavLinks;
