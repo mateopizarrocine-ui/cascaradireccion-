@@ -46,6 +46,8 @@ const Cascara = {
       .maybeSingle();
     if (qErr) console.warn('[Cascara] quarter:', qErr);
     this.state.quarter = quarter;
+    // Si el SC cambia el audit_status remoto, podemos suscribirnos vía realtime
+    // (Fase posterior). Por ahora, cada navegación re-lee el quarter.
 
     // Restaurar sesión
     const storedUserId = localStorage.getItem('cascara_user_id');
@@ -497,6 +499,104 @@ const Cascara = {
     return session;
   },
 
+  // ---------- AUDIT SESSION · Master Timeline ----------
+  async isStrategyCouncil(userId = null) {
+    const uid = userId || this.state.user?.id;
+    if (!uid) return false;
+    const { data } = await this.client.from('strategy_council_members').select('id').eq('user_id', uid).maybeSingle();
+    return !!data;
+  },
+
+  async getAuditStatus(quarterId = null) {
+    const qid = quarterId || this.state.quarter?.id;
+    if (!qid) return 'planning';
+    const { data } = await this.client.from('quarters').select('audit_status').eq('id', qid).maybeSingle();
+    return data?.audit_status || 'planning';
+  },
+
+  // Capa 2 está abierta si el master timeline está locked, en ejecución o cerrado
+  isCapa2Open(auditStatus) {
+    return ['timeline_locked', 'execution', 'closed'].includes(auditStatus);
+  },
+
+  async listProjectsForAudit(quarterId = null) {
+    const qid = quarterId || this.state.quarter?.id;
+    if (!qid) return [];
+    // Todos los proyectos de todas las áreas del Q
+    const { data } = await this.client
+      .from('projects')
+      .select('*, plan:plans(area:areas(id,name,slug,color,order_index))')
+      .order('order_index');
+    const flat = (data || []).filter(p => p.plan?.area).map(p => ({
+      ...p,
+      area_id: p.plan.area.id,
+      area_name: p.plan.area.name,
+      area_slug: p.plan.area.slug,
+      area_color: p.plan.area.color,
+      area_order: p.plan.area.order_index,
+    }));
+    // Solo los del quarter en curso
+    const { data: plansForQ } = await this.client.from('plans').select('id').eq('quarter_id', qid);
+    const planIds = new Set((plansForQ || []).map(p => p.id));
+    return flat.filter(p => planIds.has(p.plan_id));
+  },
+
+  async listTimelineEntries(quarterId = null) {
+    const qid = quarterId || this.state.quarter?.id;
+    if (!qid) return [];
+    const { data } = await this.client.from('q_timeline').select('*').eq('quarter_id', qid).order('start_fortnight').order('sequence_order');
+    return data || [];
+  },
+
+  async upsertTimelineEntry(projectId, startFortnight, endFortnight, sequenceOrder, notes) {
+    if (!this.state.quarter) return null;
+    const isSC = await this.isStrategyCouncil();
+    if (!isSC && !this.isAdmin()) return null;
+    const { data: existing } = await this.client
+      .from('q_timeline').select('id')
+      .eq('quarter_id', this.state.quarter.id).eq('project_id', projectId).maybeSingle();
+    if (existing) {
+      this.setSaveStatus('saving');
+      const { error } = await this.client.from('q_timeline').update({
+        start_fortnight: startFortnight,
+        end_fortnight: endFortnight || startFortnight,
+        sequence_order: sequenceOrder || 0,
+        notes: notes || null,
+        assigned_by: this.state.user?.id,
+      }).eq('id', existing.id);
+      if (error) { this.setSaveStatus('error'); return null; }
+      this.setSaveStatus('saved');
+      return existing.id;
+    }
+    const { data, error } = await this.client.from('q_timeline').insert({
+      quarter_id: this.state.quarter.id,
+      project_id: projectId,
+      start_fortnight: startFortnight,
+      end_fortnight: endFortnight || startFortnight,
+      sequence_order: sequenceOrder || 0,
+      notes: notes || null,
+      assigned_by: this.state.user?.id,
+    }).select().single();
+    if (error) { this.setSaveStatus('error'); return null; }
+    this.setSaveStatus('saved');
+    return data.id;
+  },
+
+  async setAuditStatus(newStatus) {
+    if (!this.state.quarter) return;
+    const isSC = await this.isStrategyCouncil();
+    if (!isSC && !this.isAdmin()) return;
+    const patch = { audit_status: newStatus };
+    if (newStatus === 'timeline_locked') {
+      patch.timeline_locked_at = new Date().toISOString();
+      patch.timeline_locked_by = this.state.user?.id;
+    }
+    await this.client.from('quarters').update(patch).eq('id', this.state.quarter.id);
+    // Actualizar state local
+    this.state.quarter.audit_status = newStatus;
+    document.dispatchEvent(new CustomEvent('cascara:audit-status-changed', { detail: newStatus }));
+  },
+
   // ---------- COMMENTS ----------
   async listComments(planId, targetType = null, targetId = null) {
     let q = this.client.from('comments').select('*').eq('plan_id', planId).order('created_at');
@@ -683,8 +783,16 @@ const CascaraForm = {
       return;
     }
 
+    // Cargar audit_status actual del quarter (puede haber cambiado en otra sesión)
+    if (Cascara.state.quarter) {
+      Cascara.state.quarter.audit_status = await Cascara.getAuditStatus();
+    }
+
     // SOLO load — no create. Plan se crea on-demand cuando el director escribe algo.
     await Cascara.loadExistingPlan();
+
+    // Renderizar banner contextual de audit_status
+    this.renderAuditBanner();
 
     await this.populateFs1();
     await this.populateFs2();
@@ -753,6 +861,131 @@ const CascaraForm = {
     `;
     const form = document.querySelector('#view-formulario .formulario-grid, #view-formulario .f-section');
     if (form && form.parentElement) form.parentElement.insertBefore(banner, form);
+  },
+
+  // ---------- AUDIT BANNER · indica qué capa está abierta ----------
+  renderAuditBanner() {
+    const existing = document.getElementById('cascara-audit-banner');
+    if (existing) existing.remove();
+
+    const status = Cascara.state.quarter?.audit_status || 'planning';
+    const isOpen = Cascara.isCapa2Open(status);
+
+    // Inyectar CSS para el gating si no está
+    if (!document.getElementById('cascara-gating-style')) {
+      const style = document.createElement('style');
+      style.id = 'cascara-gating-style';
+      style.textContent = `
+        /* Campos bloqueados en Capa 1 */
+        .cascara-capa2-locked {
+          background: rgba(0,0,0,0.04) !important;
+          color: var(--ink-faint) !important;
+          cursor: not-allowed !important;
+          pointer-events: none;
+          opacity: 0.6;
+        }
+        /* Sección entera bloqueada (fs6 Ritmo) */
+        #fs6.cascara-section-locked {
+          position: relative;
+          opacity: 0.55;
+          pointer-events: none;
+        }
+        #fs6.cascara-section-locked::before {
+          content: '🔒 Esta sección se desbloquea después de la Audit Session del Strategy Council';
+          position: absolute;
+          top: 50%; left: 50%;
+          transform: translate(-50%, -50%);
+          background: rgba(195,154,0,0.95);
+          color: #fff;
+          padding: 14px 24px;
+          border-radius: 999px;
+          font-size: 13px;
+          font-weight: 700;
+          letter-spacing: 0.02em;
+          z-index: 10;
+          pointer-events: auto;
+          cursor: not-allowed;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+        }
+        /* Banner contextual arriba del form */
+        #cascara-audit-banner {
+          margin: 0 0 24px;
+          padding: 16px 20px;
+          border-radius: 12px;
+          font-size: 13.5px;
+          line-height: 1.5;
+          display: flex; align-items: flex-start; gap: 14px;
+        }
+        #cascara-audit-banner.is-capa1 {
+          background: rgba(195,154,0,0.08);
+          border: 1px solid rgba(195,154,0,0.3);
+          color: #7A6000;
+        }
+        #cascara-audit-banner.is-capa2 {
+          background: rgba(0,179,107,0.07);
+          border: 1px solid rgba(0,179,107,0.28);
+          color: #00733C;
+        }
+        #cascara-audit-banner .ab-icon { font-size: 18px; line-height: 1; flex-shrink: 0; }
+        #cascara-audit-banner strong { display: block; margin-bottom: 4px; }
+      `;
+      document.head.appendChild(style);
+    }
+
+    const banner = document.createElement('div');
+    banner.id = 'cascara-audit-banner';
+    if (isOpen) {
+      banner.className = 'is-capa2';
+      banner.innerHTML = `
+        <span class="ab-icon">✓</span>
+        <div>
+          <strong>Capa 2 abierta</strong>
+          El Master Timeline está locked. Completá las fechas de Hitos y KPIs, y el Ritmo del Q se va a auto-poblar.
+        </div>
+      `;
+    } else if (status === 'audit_in_progress') {
+      banner.className = 'is-capa1';
+      banner.innerHTML = `
+        <span class="ab-icon">⏳</span>
+        <div>
+          <strong>Audit Session en curso</strong>
+          El Strategy Council (Teo + Facu + Franco) está ordenando los Proyectos en el Master Timeline. Los campos de fecha se desbloquean cuando termine.
+        </div>
+      `;
+    } else {
+      banner.className = 'is-capa1';
+      banner.innerHTML = `
+        <span class="ab-icon">🟡</span>
+        <div>
+          <strong>Capa 1 — En planificación</strong>
+          Cargá el QUÉ y el POR QUÉ de tus Proyectos. Las fechas de Hitos y el Ritmo del Q se completan después del Audit Session del Strategy Council.
+        </div>
+      `;
+    }
+    const formGrid = document.querySelector('#view-formulario .formulario-grid, #view-formulario .f-section');
+    if (formGrid?.parentElement) formGrid.parentElement.insertBefore(banner, formGrid);
+
+    // Aplicar gating al fs6 según estado
+    const fs6 = document.getElementById('fs6');
+    if (fs6) {
+      fs6.classList.toggle('cascara-section-locked', !isOpen);
+    }
+    // Aplicar gating a los date inputs (kpi deadline + milestone due_date)
+    this.applyDateGating(isOpen);
+  },
+
+  applyDateGating(capa2Open) {
+    document.querySelectorAll('.f-kpi-row input[data-field="deadline"], .f-milestone-row input[data-field="due_date"]').forEach(el => {
+      if (capa2Open) {
+        el.classList.remove('cascara-capa2-locked');
+        el.disabled = false;
+        el.title = '';
+      } else {
+        el.classList.add('cascara-capa2-locked');
+        el.disabled = true;
+        el.title = 'Se completa después del Audit Session del Strategy Council';
+      }
+    });
   },
 
   showEmptyStateHint() {
@@ -1043,10 +1276,11 @@ const CascaraForm = {
     row.dataset.milestoneId = m.id;
     row.style.cssText = 'display:grid;grid-template-columns: 30px 1fr 130px 30px;gap:8px;align-items:center;margin-bottom:6px;';
     const checked = m.status === 'done';
+    const capa2 = Cascara.isCapa2Open(Cascara.state.quarter?.audit_status);
     row.innerHTML = `
       <button class="f-ms-toggle" type="button" title="Marcar como completado" style="width:22px;height:22px;border-radius:5px;border:1.5px solid ${checked ? '#00B36B' : 'rgba(0,0,0,0.18)'};background:${checked ? '#00B36B' : 'transparent'};color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">${checked ? '✓' : ''}</button>
       <input type="text" class="f-input" placeholder="Qué tiene que estar listo" data-target="milestone" data-field="title" />
-      <input type="date" class="f-input" data-target="milestone" data-field="due_date" />
+      <input type="date" class="f-input ${capa2 ? '' : 'cascara-capa2-locked'}" data-target="milestone" data-field="due_date" ${capa2 ? '' : 'disabled title="Se completa después del Audit Session"'} />
       <button class="f-ms-remove" type="button" style="background:none;border:none;color:#A8A8AC;font-size:18px;cursor:pointer;padding:0;">×</button>
     `;
     row.querySelector('[data-field="title"]').value = m.title || '';
@@ -1079,10 +1313,11 @@ const CascaraForm = {
     const row = document.createElement('div');
     row.className = 'f-kpi-row';
     row.dataset.kpiId = kpi.id;
+    const capa2 = Cascara.isCapa2Open(Cascara.state.quarter?.audit_status);
     row.innerHTML = `
       <input type="text" class="f-input" placeholder="Nombre del KPI" data-target="kpi" data-field="name" />
       <input type="text" class="f-input" placeholder="N° objetivo (ej: 100 o 20%)" data-target="kpi" data-field="target" inputmode="numeric" />
-      <input type="date" class="f-input" data-target="kpi" data-field="deadline" />
+      <input type="date" class="f-input ${capa2 ? '' : 'cascara-capa2-locked'}" data-target="kpi" data-field="deadline" ${capa2 ? '' : 'disabled title="Se completa después del Audit Session"'} />
       <button class="f-kpi-remove" type="button">×</button>
     `;
     row.querySelector('[data-field="name"]').value = kpi.name || '';
