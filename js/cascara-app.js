@@ -1215,13 +1215,13 @@ const CascaraForm = {
         </div>
         <div class="f-field f-milestones-list">
           <div class="f-field-label">Hitos del Proyecto</div>
-          <div class="f-field-help">Momentos puntuales con fecha objetivo. Aparecen en el Ritmo del Q.</div>
+          <div class="f-field-help"><strong>Cargá ahora el título</strong> de cada hito (qué momento clave del proyecto). <strong>La fecha</strong> se completa <strong>después del Audit Session</strong>, basándote en el Master Timeline del Q. Los hitos con fecha se ven en el Ritmo del Q.</div>
           <div class="f-milestones-rows"></div>
           <button class="f-milestone-add" type="button">+ agregar hito</button>
         </div>
         <div class="f-field f-kpi-list">
           <div class="f-field-label">KPIs comprometidos <span class="required">obligatorio</span></div>
-          <div class="f-field-help">Cada KPI con número objetivo y fecha.</div>
+          <div class="f-field-help"><strong>Cargá ahora el nombre del KPI y su número objetivo</strong>. <strong>La fecha de cumplimiento</strong> se completa <strong>después del Audit Session</strong>, cuando sepas en qué quincena del Q vive el proyecto.</div>
           <div class="f-kpi-rows"></div>
           <button class="f-kpi-add" type="button">+ agregar KPI</button>
         </div>
