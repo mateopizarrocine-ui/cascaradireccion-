@@ -3358,10 +3358,20 @@ button:active, .hcard:active, .ad-plan-card:active, .preso-card:active, .preso-m
 /* Login: estado disabled hasta que esté listo */
 .tb-user.is-loading, .person-tile.is-loading,
 body.cascara-not-ready .person-tile,
+body.cascara-not-ready .person-card,
 body.cascara-not-ready .login-tile-grid button {
   opacity: 0.45;
   pointer-events: none;
   cursor: wait;
+}
+
+/* Restoring: hay sesión en cache y vamos a auto-restaurar. Ocultar el login para evitar el flash. */
+body.cascara-restoring #view-login {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+body.cascara-restoring #view-login.active {
+  visibility: hidden !important;
 }
 
 /* Loader spinner global · sutil */

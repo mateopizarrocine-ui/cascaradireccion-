@@ -26,6 +26,9 @@ const Cascara = {
   async init() {
     // Bloquear la UI hasta que estemos listos
     document.body.classList.add('cascara-not-ready');
+    // Si hay sesión en cache, marcamos restoring para ocultar el login (evita flash)
+    const cachedUserId = localStorage.getItem('cascara_user_id');
+    if (cachedUserId) document.body.classList.add('cascara-restoring');
     if (!window.supabase) {
       console.error('[Cascara] Supabase SDK no cargó');
       return;
@@ -59,6 +62,8 @@ const Cascara = {
     this.setupSaveIndicator();
     // UI ya está lista para recibir clicks
     document.body.classList.remove('cascara-not-ready');
+    // Si NO hay sesión válida, mostrar login (sacar restoring si quedó colgado por sesión inválida)
+    if (!this.state.user) document.body.classList.remove('cascara-restoring');
     document.dispatchEvent(new CustomEvent('cascara:ready'));
   },
 
@@ -4065,14 +4070,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   }, 500);
 
   // Restaurar la última vista si el usuario ya estaba logueado
-  setTimeout(() => {
-    if (!Cascara.state.user || !window.goTo) return;
+  // Lo hacemos lo antes posible para que no haya flash del login screen
+  const doRestore = () => {
+    if (!Cascara.state.user || !window.goTo) {
+      // No hay sesión válida: liberar la clase restoring para mostrar el login normalmente
+      document.body.classList.remove('cascara-restoring');
+      return;
+    }
     // Sincronizar identidad ANTES de navegar — pisa cualquier hardcoded del markup
     if (window.CascaraHome) CascaraHome.refreshIdentity();
     const saved = localStorage.getItem('cascara_view');
     const target = (saved && saved !== 'login') ? saved : 'home';
     window.goTo(target);
-  }, 600);
+    // Liberar después de navegar — el login queda oculto y home visible
+    requestAnimationFrame(() => document.body.classList.remove('cascara-restoring'));
+  };
+  if (Cascara.state.ready) doRestore();
+  else document.addEventListener('cascara:ready', doRestore, { once: true });
 
   // Keyboard nav para official preso
   document.addEventListener('keydown', e => {
