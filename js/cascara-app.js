@@ -3187,6 +3187,378 @@ const CascaraOfficialPreso = {
 window.CascaraOfficialPreso = CascaraOfficialPreso;
 
 /* ============================================================
+ * CascaraAudit — Sesión de Auditoría del Strategy Council
+ * Drag&drop de Proyectos a las 6 quincenas del Q
+ * ============================================================ */
+const CascaraAudit = {
+  view: null,
+  dragState: null,
+
+  ensureView() {
+    if (this.view) return this.view;
+    this.injectStyle();
+    const v = document.createElement('div');
+    v.id = 'view-audit-session';
+    v.className = 'view';
+    v.innerHTML = `
+      <div class="au-wrap">
+        <button class="ext-back" onclick="goTo('home')">← Volver al home</button>
+        <div class="au-head-row">
+          <div class="au-head">
+            <div class="au-eyebrow">Strategy Council · Audit Session</div>
+            <h1 class="au-title">Master <em>Timeline.</em></h1>
+            <div class="au-sub">Arrastrá cada Proyecto a la quincena del Q donde arranca. Cuando esté ordenado, locká el timeline.</div>
+          </div>
+          <div class="au-status-controls" id="au-status-controls"></div>
+        </div>
+
+        <div class="au-board">
+          <div class="au-pool-col">
+            <div class="au-col-head">
+              <div class="au-col-title">Sin asignar</div>
+              <div class="au-col-sub" id="au-pool-count">0 proyectos</div>
+            </div>
+            <div class="au-drop-zone" data-fortnight="0" id="au-pool-drop">
+              <div class="au-empty">Todos asignados ✓</div>
+            </div>
+          </div>
+
+          <div class="au-fortnights-grid" id="au-fortnights-grid"></div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(v);
+    this.view = v;
+    return v;
+  },
+
+  injectStyle() {
+    if (document.getElementById('cascara-audit-style')) return;
+    const s = document.createElement('style');
+    s.id = 'cascara-audit-style';
+    s.textContent = `
+      #view-audit-session { background: var(--cream, #DBD8D3); min-height: 100vh; padding: 36px 40px 60px; font-family: var(--font-sans); }
+      #view-audit-session .au-wrap { max-width: 1500px; margin: 0 auto; }
+      #view-audit-session .ext-back { background: none; border: none; color: #52525A; cursor: pointer; font-size: 13px; padding: 0; margin-bottom: 24px; font-family: inherit; }
+      #view-audit-session .au-head-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
+      #view-audit-session .au-eyebrow { font-size: 11px; color: #C39A00; text-transform: uppercase; letter-spacing: 0.16em; font-weight: 700; margin-bottom: 12px; }
+      #view-audit-session .au-title { font-size: 52px; font-weight: 800; margin: 0 0 8px; color: #0A0A0C; line-height: 0.95; letter-spacing: -0.025em; }
+      #view-audit-session .au-title em { font-family: var(--font-serif); font-style: italic; color: var(--blue); font-weight: 400; }
+      #view-audit-session .au-sub { font-size: 14px; color: #52525A; max-width: 700px; line-height: 1.5; }
+
+      .au-status-controls { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+      .au-status-badge { padding: 6px 14px; border-radius: 999px; font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em; }
+      .au-status-badge.planning { background: rgba(82,82,90,0.12); color: #52525A; }
+      .au-status-badge.in_progress { background: rgba(195,154,0,0.16); color: #7A6000; }
+      .au-status-badge.locked { background: rgba(0,179,107,0.14); color: #00733C; }
+      .au-action-btn {
+        background: var(--blue); color: #fff; border: none;
+        padding: 10px 18px; border-radius: 999px;
+        font-size: 12.5px; font-weight: 600; cursor: pointer;
+        font-family: inherit; letter-spacing: 0.02em;
+      }
+      .au-action-btn.lock { background: #00B36B; }
+      .au-action-btn.unlock { background: transparent; color: var(--ink-soft); border: 1px solid rgba(0,0,0,0.18); }
+      .au-action-btn:hover { filter: brightness(1.08); }
+
+      /* Board layout: pool left + fortnights grid right */
+      .au-board {
+        display: grid;
+        grid-template-columns: 260px 1fr;
+        gap: 18px;
+        align-items: start;
+      }
+
+      .au-pool-col {
+        background: rgba(0,0,0,0.04);
+        border-radius: 14px;
+        padding: 16px;
+        position: sticky; top: 20px;
+        max-height: calc(100vh - 60px);
+        overflow-y: auto;
+      }
+      .au-fortnights-grid {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 12px;
+      }
+      .au-fortnight-col {
+        background: rgba(255,255,255,0.6);
+        border: 1px solid rgba(0,0,0,0.07);
+        border-radius: 14px;
+        padding: 14px 12px;
+        min-height: 400px;
+        display: flex; flex-direction: column;
+      }
+      .au-col-head { padding-bottom: 12px; border-bottom: 1px solid rgba(0,0,0,0.08); margin-bottom: 12px; }
+      .au-col-title { font-size: 13px; font-weight: 800; letter-spacing: -0.01em; }
+      .au-col-sub { font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #52525A; margin-top: 4px; }
+      .au-col-dates { font-family: var(--font-serif); font-style: italic; font-size: 11px; color: var(--blue); margin-top: 2px; }
+
+      .au-drop-zone {
+        flex: 1;
+        display: flex; flex-direction: column; gap: 8px;
+        min-height: 50px;
+        padding: 4px;
+        border-radius: 8px;
+        transition: background 0.15s ease;
+      }
+      .au-drop-zone.is-dragover {
+        background: rgba(16,6,159,0.08);
+        outline: 2px dashed var(--blue);
+        outline-offset: -2px;
+      }
+      .au-empty {
+        font-size: 11px; color: #A8A8AC;
+        text-align: center; padding: 14px;
+        font-style: italic; font-family: var(--font-serif);
+      }
+
+      .au-project-chip {
+        background: #fff;
+        border: 1px solid rgba(0,0,0,0.1);
+        border-left: 3px solid var(--area-color, var(--blue));
+        border-radius: 8px;
+        padding: 10px 12px;
+        cursor: grab;
+        user-select: none;
+        transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+      }
+      .au-project-chip:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); transform: translateY(-1px); }
+      .au-project-chip:active { cursor: grabbing; }
+      .au-project-chip.is-dragging { opacity: 0.4; }
+      .au-project-area {
+        font-size: 9.5px; font-weight: 800; letter-spacing: 0.14em;
+        text-transform: uppercase; color: var(--area-color, var(--blue));
+        margin-bottom: 3px;
+      }
+      .au-project-name {
+        font-size: 12.5px; font-weight: 600; line-height: 1.3; color: var(--ink);
+      }
+      .au-project-resp {
+        font-size: 10.5px; color: #52525A; margin-top: 4px;
+        font-family: var(--font-serif); font-style: italic;
+      }
+
+      /* Locked state */
+      #view-audit-session.is-locked .au-project-chip { cursor: not-allowed; opacity: 0.85; }
+      #view-audit-session.is-locked .au-drop-zone.is-dragover { outline: none; background: transparent; }
+
+      .au-pool-count-badge {
+        background: var(--blue); color: #fff;
+        padding: 2px 8px; border-radius: 999px;
+        font-size: 10px; font-weight: 700;
+        display: inline-block; margin-left: 6px;
+      }
+    `;
+    document.head.appendChild(s);
+  },
+
+  async enter() {
+    if (!Cascara.state.user) {
+      alert('Necesitás estar logueado.');
+      goTo('login');
+      return;
+    }
+    const isSC = await Cascara.isStrategyCouncil();
+    const isAdmin = Cascara.isAdmin();
+    if (!isSC && !isAdmin) {
+      alert('Esta vista es solo para el Strategy Council (Teo, Facu, Franco).');
+      goTo('home');
+      return;
+    }
+
+    this.ensureView();
+    await this.render();
+  },
+
+  async render() {
+    const status = await Cascara.getAuditStatus();
+    if (Cascara.state.quarter) Cascara.state.quarter.audit_status = status;
+
+    // Render status controls + locked class
+    const view = document.getElementById('view-audit-session');
+    view.classList.toggle('is-locked', status === 'timeline_locked');
+
+    const statusControls = document.getElementById('au-status-controls');
+    const statusLabel = {
+      planning: 'Sin abrir',
+      audit_in_progress: 'En curso',
+      timeline_locked: 'Locked ✓',
+      execution: 'En ejecución',
+      closed: 'Cerrado',
+    }[status] || status;
+    const statusKey = status === 'audit_in_progress' ? 'in_progress' : (status === 'timeline_locked' || status === 'execution' || status === 'closed' ? 'locked' : 'planning');
+
+    let actionBtn = '';
+    if (status === 'planning') {
+      actionBtn = '<button class="au-action-btn" onclick="CascaraAudit.startSession()">Abrir Audit Session</button>';
+    } else if (status === 'audit_in_progress') {
+      actionBtn = '<button class="au-action-btn lock" onclick="CascaraAudit.lockTimeline()">Lock Master Timeline</button>';
+    } else if (status === 'timeline_locked') {
+      actionBtn = '<button class="au-action-btn unlock" onclick="CascaraAudit.unlockTimeline()">Reabrir para ajustes</button>';
+    }
+    statusControls.innerHTML = `
+      <div class="au-status-badge ${statusKey}">${statusLabel}</div>
+      ${actionBtn}
+    `;
+
+    // Load projects + timeline entries
+    const projects = await Cascara.listProjectsForAudit();
+    const entries = await Cascara.listTimelineEntries();
+    const entryByProject = new Map(entries.map(e => [e.project_id, e]));
+
+    // Render fortnights grid
+    const fortnights = CascaraForm.deriveFortnightsFromQuarter(Cascara.state.quarter);
+    const grid = document.getElementById('au-fortnights-grid');
+    grid.innerHTML = '';
+    fortnights.forEach((fn, i) => {
+      const idx = i + 1;
+      const col = document.createElement('div');
+      col.className = 'au-fortnight-col';
+      col.innerHTML = `
+        <div class="au-col-head">
+          <div class="au-col-title">Q${String(idx).padStart(2,'0')} · ${fn.label.split('·')[1]?.trim() || fn.label}</div>
+          <div class="au-col-dates">${fn.dateLabel || ''}</div>
+        </div>
+        <div class="au-drop-zone" data-fortnight="${idx}"></div>
+      `;
+      grid.appendChild(col);
+    });
+
+    // Place projects in their assigned column (or pool)
+    const pool = document.getElementById('au-pool-drop');
+    pool.innerHTML = '';
+    projects.forEach(p => {
+      const chip = this.buildProjectChip(p);
+      const entry = entryByProject.get(p.id);
+      if (entry && entry.start_fortnight) {
+        const target = grid.querySelector(`.au-drop-zone[data-fortnight="${entry.start_fortnight}"]`);
+        if (target) target.appendChild(chip);
+      } else {
+        pool.appendChild(chip);
+      }
+    });
+
+    // Update pool count + empty messages
+    this.updateCounts();
+
+    // Wire drop zones (allow drops if not locked)
+    if (status !== 'timeline_locked' && status !== 'execution' && status !== 'closed') {
+      this.wireDragDrop();
+    }
+  },
+
+  buildProjectChip(p) {
+    const chip = document.createElement('div');
+    chip.className = 'au-project-chip';
+    chip.draggable = true;
+    chip.dataset.projectId = p.id;
+    chip.style.setProperty('--area-color', p.area_color || '#10069F');
+    chip.innerHTML = `
+      <div class="au-project-area">${this.escape(p.area_name || '')}</div>
+      <div class="au-project-name">${this.escape(p.name || 'Sin nombre')}</div>
+      ${p.responsible_name ? `<div class="au-project-resp">Resp: ${this.escape(p.responsible_name)}</div>` : ''}
+    `;
+    chip.addEventListener('dragstart', (e) => {
+      this.dragState = { projectId: p.id, fromEl: chip };
+      chip.classList.add('is-dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', p.id);
+    });
+    chip.addEventListener('dragend', () => {
+      chip.classList.remove('is-dragging');
+      this.dragState = null;
+    });
+    return chip;
+  },
+
+  wireDragDrop() {
+    document.querySelectorAll('#view-audit-session .au-drop-zone').forEach(zone => {
+      zone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        zone.classList.add('is-dragover');
+      });
+      zone.addEventListener('dragleave', (e) => {
+        if (e.target === zone) zone.classList.remove('is-dragover');
+      });
+      zone.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        zone.classList.remove('is-dragover');
+        if (!this.dragState) return;
+        const { projectId, fromEl } = this.dragState;
+        const fortnight = parseInt(zone.dataset.fortnight);
+        // Remover empty placeholder si lo hubiera
+        const empty = zone.querySelector('.au-empty');
+        if (empty) empty.remove();
+        // Mover chip al nuevo zone
+        zone.appendChild(fromEl);
+        // Persistir
+        if (fortnight === 0) {
+          // Dropped al pool: borrar entrada del timeline
+          await Cascara.client.from('q_timeline').delete()
+            .eq('quarter_id', Cascara.state.quarter.id).eq('project_id', projectId);
+        } else {
+          await Cascara.upsertTimelineEntry(projectId, fortnight, fortnight, 0);
+        }
+        this.updateCounts();
+      });
+    });
+  },
+
+  updateCounts() {
+    const pool = document.getElementById('au-pool-drop');
+    const poolItems = pool.querySelectorAll('.au-project-chip');
+    document.getElementById('au-pool-count').textContent = `${poolItems.length} proyecto${poolItems.length === 1 ? '' : 's'}`;
+    if (poolItems.length === 0 && !pool.querySelector('.au-empty')) {
+      pool.innerHTML = '<div class="au-empty">Todos asignados ✓</div>';
+    }
+    // Empty messages para las quincenas
+    document.querySelectorAll('#view-audit-session .au-fortnight-col .au-drop-zone').forEach(zone => {
+      const chips = zone.querySelectorAll('.au-project-chip');
+      const empty = zone.querySelector('.au-empty');
+      if (chips.length === 0 && !empty) {
+        const e = document.createElement('div');
+        e.className = 'au-empty';
+        e.textContent = '—';
+        zone.appendChild(e);
+      } else if (chips.length > 0 && empty) {
+        empty.remove();
+      }
+    });
+  },
+
+  async startSession() {
+    await Cascara.setAuditStatus('audit_in_progress');
+    await this.render();
+  },
+
+  async lockTimeline() {
+    // Confirmar
+    const unassigned = document.querySelectorAll('#au-pool-drop .au-project-chip').length;
+    if (unassigned > 0) {
+      if (!confirm(`Todavía hay ${unassigned} proyecto${unassigned === 1 ? '' : 's'} sin asignar. ¿Lockear igual?`)) return;
+    }
+    if (!confirm('Lockear el Master Timeline desbloquea la Capa 2 para todos los Directores. ¿Confirmás?')) return;
+    await Cascara.setAuditStatus('timeline_locked');
+    await this.render();
+    alert('Master Timeline locked. Los Directores ya pueden completar la Capa 2.');
+  },
+
+  async unlockTimeline() {
+    if (!confirm('Reabrir la Audit Session vuelve la Capa 2 a estado bloqueado para todos los Directores. Las fechas ya cargadas NO se borran. ¿Continuar?')) return;
+    await Cascara.setAuditStatus('audit_in_progress');
+    await this.render();
+  },
+
+  escape(s) {
+    return (s == null ? '' : String(s)).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+  },
+};
+window.CascaraAudit = CascaraAudit;
+
+/* ============================================================
  * CascaraHome — refresca las 3 cards del home con data real
  * ============================================================ */
 const CascaraHome = {
@@ -3489,6 +3861,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (viewName === 'admin-dashboard') CascaraAdmin.ensureView();
       if (viewName === 'check-ins') CascaraCheckIns.ensureView();
       if (viewName === 'official-preso') CascaraOfficialPreso.ensureView();
+      if (viewName === 'audit-session') CascaraAudit.ensureView();
 
       // Ocultar banner de ejemplo al cambiar de vista
       if (viewName !== 'preso-viewer') CascaraPresentations.hideBanner();
@@ -3502,6 +3875,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (viewName === 'formulario') CascaraForm.enter();
       if (viewName === 'admin-dashboard') CascaraAdmin.enter();
       if (viewName === 'check-ins') CascaraCheckIns.enter();
+      if (viewName === 'audit-session') CascaraAudit.enter();
       if (viewName === 'home') {
         CascaraPresentations.refreshMarks();
         CascaraHome.refresh();
@@ -3570,9 +3944,19 @@ function injectNavLinks() {
   }
 }
 
-function addNavLinksTo(container) {
+async function addNavLinksTo(container) {
   // Limpiar previos
   container.querySelectorAll('.cascara-nav-link').forEach(el => el.remove());
+
+  // Audit Session (Strategy Council o Admin)
+  const isSC = await Cascara.isStrategyCouncil();
+  if (isSC || Cascara.isAdmin()) {
+    const auditBtn = document.createElement('button');
+    auditBtn.className = 'tb-link cascara-nav-link';
+    auditBtn.innerHTML = 'Audit Session <span class="arrow">→</span>';
+    auditBtn.onclick = () => window.goTo('audit-session');
+    container.insertBefore(auditBtn, container.firstChild);
+  }
 
   if (Cascara.isAdmin()) {
     const adminBtn = document.createElement('button');
