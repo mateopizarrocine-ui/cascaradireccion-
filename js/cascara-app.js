@@ -3691,8 +3691,46 @@ window.CascaraAudit = CascaraAudit;
 const CascaraHome = {
   async refresh() {
     if (!Cascara.state.user || !Cascara.state.quarter) return;
+    this.refreshIdentity();
     await this.refreshMyPlanCard();
     await this.refreshAreasCard();
+  },
+
+  // CascaraHome es la única fuente de verdad para identidad en la home.
+  // Pisamos cualquier hardcoded del markup estático con el state real.
+  refreshIdentity() {
+    const user = Cascara.state.user;
+    if (!user) return;
+    const firstName = (user.name || '').split(' ')[0] || user.name || '—';
+    const initials = (user.name || '').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+    const roleLabel = user.role === 'admin' ? 'Admin' : (user.area?.name || '—');
+
+    const greet = document.querySelector('.greet-title');
+    if (greet) greet.innerHTML = `Hola ${this.escape(firstName)}.<em> Vamos a tu plan.</em>`;
+    const tbName = document.querySelector('.tb-user-name');
+    if (tbName) tbName.textContent = user.name;
+    const tbAvatar = document.querySelector('.tb-avatar');
+    if (tbAvatar) tbAvatar.textContent = initials;
+    const tbRole = document.querySelector('.tb-user-role');
+    if (tbRole) tbRole.textContent = roleLabel;
+
+    // Sincronizar el currentUser legacy con el state real (por si applyUserToHome corre después)
+    const dbName = (user.name || '').toLowerCase();
+    const reverseMap = {
+      'facundo couyet': 'facu',
+      'teo pizarro': 'teo',
+      'mateo pizarro': 'teo',
+      'federico cristofari': 'fede',
+      'juana tempesta': 'juana',
+      'franco dato': 'franco',
+      'francisca': 'francisca',
+    };
+    const k = reverseMap[dbName];
+    if (k) window.currentUser = k;
+  },
+
+  escape(s) {
+    return (s == null ? '' : String(s)).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
   },
 
   async refreshMyPlanCard() {
@@ -4029,21 +4067,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Restaurar la última vista si el usuario ya estaba logueado
   setTimeout(() => {
     if (!Cascara.state.user || !window.goTo) return;
-    // Aplicar info de usuario al home (lo hace la app original via applyUserToHome)
-    if (typeof window.applyUserToHome === 'function') {
-      // Mapear DB user a PEOPLE_MAP key para que applyUserToHome funcione
-      const dbName = Cascara.state.user.name.toLowerCase();
-      const keyMap = {
-        'facundo couyet': 'facu',
-        'teo pizarro': 'teo',
-        'federico cristofari': 'fede',
-        'juana tempesta': 'juana',
-        'franco dato': 'franco',
-        'francisca': 'francisca',
-      };
-      const key = keyMap[dbName];
-      if (key) window.currentUser = key;
-    }
+    // Sincronizar identidad ANTES de navegar — pisa cualquier hardcoded del markup
+    if (window.CascaraHome) CascaraHome.refreshIdentity();
     const saved = localStorage.getItem('cascara_view');
     const target = (saved && saved !== 'login') ? saved : 'home';
     window.goTo(target);
