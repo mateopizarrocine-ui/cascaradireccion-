@@ -582,6 +582,24 @@ const Cascara = {
     return data.id;
   },
 
+  async updateQuarterStartDate(newDateISO) {
+    if (!this.state.quarter) return { ok: false, error: 'no-quarter' };
+    if (!this.isAdmin()) return { ok: false, error: 'not-admin' };
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(newDateISO)) return { ok: false, error: 'bad-date' };
+    const patch = { start_date: newDateISO };
+    // end_date opcional: 11 semanas (77 días) después de start, para que la duración del Q quede consistente con las 6 quincenas + apertura/cierre
+    const start = new Date(newDateISO + 'T00:00:00');
+    const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 77);
+    const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    patch.end_date = fmt(end);
+    const { error } = await this.client.from('quarters').update(patch).eq('id', this.state.quarter.id);
+    if (error) return { ok: false, error: error.message };
+    this.state.quarter.start_date = patch.start_date;
+    this.state.quarter.end_date = patch.end_date;
+    document.dispatchEvent(new CustomEvent('cascara:quarter-dates-changed', { detail: patch }));
+    return { ok: true, patch };
+  },
+
   async setAuditStatus(newStatus) {
     if (!this.state.quarter) return;
     const isSC = await this.isStrategyCouncil();
@@ -2030,6 +2048,26 @@ const CascaraAdmin = {
           <img src="assets/brand/cascara-jinete-azul.png" class="ad-logo" alt="Cáscara" />
         </div>
         <div class="ad-stats" id="ad-stats"></div>
+
+        <!-- Q control · admin -->
+        <div class="ad-qctrl" id="ad-qctrl">
+          <div class="ad-qctrl-head">
+            <div>
+              <div class="ad-qctrl-eyebrow">Control del Q · Admin</div>
+              <div class="ad-qctrl-title">Fecha de apertura</div>
+              <div class="ad-qctrl-help">Mové esta fecha si el pre-Q se corre. Recalcula automáticamente las 6 quincenas del Ritmo del Q y el Master Timeline.</div>
+            </div>
+            <div class="ad-qctrl-form">
+              <label class="ad-qctrl-label">Apertura del Q
+                <input type="date" id="ad-quarter-start" class="ad-qctrl-input" />
+              </label>
+              <button id="ad-quarter-save" class="ad-qctrl-btn">Actualizar fecha</button>
+              <div id="ad-quarter-status" class="ad-qctrl-status"></div>
+            </div>
+          </div>
+          <div class="ad-qctrl-derived" id="ad-quarter-derived"></div>
+        </div>
+
         <div class="ad-section-title">Las 7 áreas</div>
         <div class="ad-grid" id="ad-grid">Cargando…</div>
         <div class="ad-activity-wrap" id="ad-activity-wrap"></div>
@@ -2056,6 +2094,43 @@ const CascaraAdmin = {
       #view-admin-dashboard .ad-sub { font-size: 14px; color: var(--ink-muted, #52525A); }
       #view-admin-dashboard .ad-section-title { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-muted); margin: 30px 0 14px; }
       #view-admin-dashboard .ad-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+
+      /* Q control · admin */
+      #view-admin-dashboard .ad-qctrl {
+        margin-top: 22px;
+        background: rgba(255,255,255,0.65);
+        border: 1px solid rgba(0,0,0,0.06);
+        border-radius: 16px;
+        padding: 20px 24px;
+      }
+      #view-admin-dashboard .ad-qctrl-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 28px; flex-wrap: wrap; }
+      #view-admin-dashboard .ad-qctrl-eyebrow { font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #10069F; margin-bottom: 4px; }
+      #view-admin-dashboard .ad-qctrl-title { font-size: 22px; font-weight: 800; letter-spacing: -0.018em; color: var(--ink); margin-bottom: 6px; }
+      #view-admin-dashboard .ad-qctrl-help { font-size: 12.5px; color: var(--ink-muted); max-width: 520px; line-height: 1.45; }
+      #view-admin-dashboard .ad-qctrl-form { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+      #view-admin-dashboard .ad-qctrl-label { display: flex; flex-direction: column; gap: 6px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-muted); }
+      #view-admin-dashboard .ad-qctrl-input {
+        padding: 9px 12px; border: 1px solid rgba(0,0,0,0.12); border-radius: 8px;
+        font-family: inherit; font-size: 14px; background: #fff; color: var(--ink); min-width: 170px;
+      }
+      #view-admin-dashboard .ad-qctrl-input:focus { outline: none; border-color: #10069F; }
+      #view-admin-dashboard .ad-qctrl-btn {
+        padding: 10px 18px; border: 0; background: #10069F; color: #fff;
+        border-radius: 8px; font-family: inherit; font-size: 13px; font-weight: 700;
+        letter-spacing: 0.04em; cursor: pointer; transition: background 0.15s;
+      }
+      #view-admin-dashboard .ad-qctrl-btn:hover { background: #0a047a; }
+      #view-admin-dashboard .ad-qctrl-btn:disabled { background: #B5B3AF; cursor: not-allowed; }
+      #view-admin-dashboard .ad-qctrl-status { font-size: 12px; color: var(--ink-muted); font-style: italic; min-height: 18px; }
+      #view-admin-dashboard .ad-qctrl-status.ok { color: #00733C; font-style: normal; }
+      #view-admin-dashboard .ad-qctrl-status.err { color: #C53030; font-style: normal; }
+      #view-admin-dashboard .ad-qctrl-derived {
+        margin-top: 18px; padding-top: 16px;
+        border-top: 1px dashed rgba(0,0,0,0.1);
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;
+      }
+      #view-admin-dashboard .ad-qctrl-quincena { font-size: 12px; color: var(--ink-muted); }
+      #view-admin-dashboard .ad-qctrl-quincena strong { display: block; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink); margin-bottom: 2px; }
 
       /* Stats top bar */
       #view-admin-dashboard .ad-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
@@ -2119,6 +2194,9 @@ const CascaraAdmin = {
     this.ensureView();
     const qName = document.getElementById('ad-quarter-name');
     if (qName && Cascara.state.quarter) qName.textContent = Cascara.state.quarter.name;
+
+    // === Q control (admin) ===
+    this.renderQuarterControl();
 
     const grid = document.getElementById('ad-grid');
     grid.innerHTML = 'Cargando…';
@@ -2215,6 +2293,55 @@ const CascaraAdmin = {
 
     // Refrescar las marcas Ejemplo/Oficial en home
     CascaraPresentations.refreshMarks();
+  },
+
+  renderQuarterControl() {
+    const q = Cascara.state.quarter;
+    if (!q) return;
+    const input = document.getElementById('ad-quarter-start');
+    const btn = document.getElementById('ad-quarter-save');
+    const status = document.getElementById('ad-quarter-status');
+    const derived = document.getElementById('ad-quarter-derived');
+    if (!input || !btn) return;
+
+    // Set current value
+    input.value = q.start_date || '';
+
+    // Pintar las 6 quincenas derivadas
+    const renderDerived = (startDateISO) => {
+      if (!derived) return;
+      const fakeQ = { start_date: startDateISO || q.start_date };
+      const fnights = CascaraForm.deriveFortnightsFromQuarter(fakeQ);
+      derived.innerHTML = fnights.map(f => `
+        <div class="ad-qctrl-quincena">
+          <strong>${f.label}</strong>
+          ${f.dateLabel}
+        </div>
+      `).join('');
+    };
+    renderDerived(input.value);
+
+    input.oninput = () => {
+      renderDerived(input.value);
+      if (status) { status.textContent = 'Sin guardar — presioná Actualizar fecha'; status.className = 'ad-qctrl-status'; }
+    };
+
+    btn.onclick = async () => {
+      const newDate = input.value;
+      if (!newDate) { if (status) { status.textContent = 'Elegí una fecha válida.'; status.className = 'ad-qctrl-status err'; } return; }
+      const confirmed = confirm(`Vas a mover la apertura del ${q.name} al ${newDate}.\n\nEsto recalcula las 6 quincenas del Ritmo del Q y la grilla del Master Timeline. Las fechas que ya cargaron los directores (KPIs, hitos) no se mueven solas — quedan ancladas a su fecha original.\n\n¿Confirmás?`);
+      if (!confirmed) return;
+      btn.disabled = true;
+      if (status) { status.textContent = 'Actualizando…'; status.className = 'ad-qctrl-status'; }
+      const r = await Cascara.updateQuarterStartDate(newDate);
+      btn.disabled = false;
+      if (r.ok) {
+        if (status) { status.textContent = `Actualizado: nueva apertura ${r.patch.start_date} · cierre estimado ${r.patch.end_date}`; status.className = 'ad-qctrl-status ok'; }
+        renderDerived(r.patch.start_date);
+      } else {
+        if (status) { status.textContent = `Error: ${r.error}`; status.className = 'ad-qctrl-status err'; }
+      }
+    };
   },
 
   statusLabel(s) {
