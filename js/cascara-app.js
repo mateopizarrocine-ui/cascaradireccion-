@@ -212,6 +212,28 @@ const Cascara = {
     if (error) console.warn(error);
   },
 
+  // Articulación libre (used by Marketing form — sin pre-asignar área)
+  async createArticulation(opts = {}) {
+    const planId = opts.plan_id || this.state.plan?.id;
+    if (!planId) return null;
+    const { data } = await this.client
+      .from('articulations')
+      .insert({ plan_id: planId, with_area_id: opts.with_area_id || null })
+      .select()
+      .single();
+    return data;
+  },
+
+  async updateArticulationField(id, field, value) {
+    this.setSaveStatus('saving');
+    const { error } = await this.client
+      .from('articulations')
+      .update({ [field]: value })
+      .eq('id', id);
+    if (error) { console.warn(error); this.setSaveStatus('error'); }
+    else this.setSaveStatus('saved');
+  },
+
   // ---------- TEAM MEMBERS ----------
   async listTeamMembers(planId = null) {
     const id = planId || this.state.plan?.id;
@@ -813,6 +835,14 @@ const CascaraForm = {
 
     // SOLO load — no create. Plan se crea on-demand cuando el director escribe algo.
     await Cascara.loadExistingPlan();
+
+    // Marketing tiene un form distinto: documento estratégico del Q
+    if (Cascara.state.area.slug === 'marketing' || Cascara.state.area.name?.toLowerCase().includes('marketing')) {
+      return CascaraFormMarketing.enter();
+    } else {
+      // Asegurar que el form estándar esté visible (por si volvíamos de Marketing)
+      CascaraFormMarketing.teardown?.();
+    }
 
     // Renderizar banner contextual de audit_status
     this.renderAuditBanner();
@@ -3689,6 +3719,514 @@ const CascaraAudit = {
   },
 };
 window.CascaraAudit = CascaraAudit;
+
+/* ============================================================
+ * CascaraFormMarketing — form especial para el área de Marketing
+ * Es un DOCUMENTO ESTRATÉGICO del Q, no una lista de proyectos.
+ * Marketing dirige el QUÉ del ecosistema; sus directivas se distribuyen
+ * en los planes de Contenido / Comercial / Marcas founders.
+ * ============================================================ */
+const CascaraFormMarketing = {
+  injected: false,
+  saveTimer: null,
+
+  async enter() {
+    // Ocultar form estándar (nav + contenido)
+    const view = document.getElementById('view-formulario');
+    if (!view) return;
+    const std = view.querySelector('.fg-nav');
+    if (std) std.style.display = 'none';
+    const stdContent = view.querySelector('.fg-content');
+    if (stdContent) stdContent.style.display = 'none';
+
+    // Update topbar / header
+    const metaArea = document.getElementById('fg-meta-area');
+    if (metaArea) metaArea.textContent = Cascara.state.area.name;
+    const metaDir = document.getElementById('fg-meta-director');
+    if (metaDir) metaDir.textContent = Cascara.state.user.name.split(' ')[0];
+    const titleEl = view.querySelector('.fg-title');
+    if (titleEl) titleEl.innerHTML = 'Documento estratégico<em>del Q.</em>';
+    const leadEl = view.querySelector('.fg-lead');
+    if (leadEl) leadEl.textContent = 'Marketing no carga proyectos sueltos: define el QUÉ del Q completo. Esta tesis baja como directivas a Contenido, Comercial y Marcas founders.';
+
+    // Inyectar nuestro contenido custom una sola vez
+    let mktRoot = document.getElementById('mkt-form-root');
+    if (!mktRoot) {
+      mktRoot = document.createElement('div');
+      mktRoot.id = 'mkt-form-root';
+      mktRoot.className = 'mkt-form-root';
+      const parent = view.querySelector('.form-glass-app');
+      if (parent) parent.appendChild(mktRoot);
+    }
+    mktRoot.style.display = '';
+    mktRoot.innerHTML = this.template();
+
+    // Inyectar estilos una vez
+    this.injectStyles();
+
+    // Banner de audit/comentarios igual que en el form estándar
+    CascaraForm.renderAuditBanner?.();
+
+    // Poblar valores del plan existente
+    await this.populate();
+
+    // Wire bindings: auto-save de textareas + Lanzamientos
+    this.bindAutoSave();
+    await this.renderLanzamientos();
+    await this.renderArticulaciones();
+  },
+
+  teardown() {
+    const mktRoot = document.getElementById('mkt-form-root');
+    if (mktRoot) mktRoot.style.display = 'none';
+    const view = document.getElementById('view-formulario');
+    if (!view) return;
+    const std = view.querySelector('.fg-nav');
+    if (std) std.style.display = '';
+    const stdContent = view.querySelector('.fg-content');
+    if (stdContent) stdContent.style.display = '';
+    // Restaurar título estándar
+    const titleEl = view.querySelector('.fg-title');
+    if (titleEl) titleEl.innerHTML = 'Planificación<em>de tu área.</em>';
+    const leadEl = view.querySelector('.fg-lead');
+    if (leadEl) leadEl.textContent = 'Completá una sola vez al inicio del Q. La misma plantilla para todas las áreas. Se firma con el CEO en la reunión de apertura.';
+  },
+
+  template() {
+    const u = Cascara.state.user;
+    const q = Cascara.state.quarter;
+    return `
+      <!-- NAV PILLS MARKETING -->
+      <div class="fg-nav mkt-nav">
+        <button class="fg-pill active" data-target="mfs1"><span class="fg-pill-num">01</span><span>Identidad</span></button>
+        <button class="fg-pill" data-target="mfs2"><span class="fg-pill-num">02</span><span>Tesis del Q</span></button>
+        <button class="fg-pill" data-target="mfs3"><span class="fg-pill-num">03</span><span>Audiencias y mensajes</span></button>
+        <button class="fg-pill" data-target="mfs4"><span class="fg-pill-num">04</span><span>Lanzamientos</span></button>
+        <button class="fg-pill" data-target="mfs5"><span class="fg-pill-num">05</span><span>Directivas</span></button>
+        <button class="fg-pill" data-target="mfs6"><span class="fg-pill-num">06</span><span>Auditoría Comercial</span></button>
+        <button class="fg-pill" data-target="mfs7"><span class="fg-pill-num">07</span><span>Producto B2C</span></button>
+        <button class="fg-pill" data-target="mfs8"><span class="fg-pill-num">08</span><span>Articulación</span></button>
+      </div>
+
+      <div class="fg-content mkt-content">
+
+        <!-- 01 · IDENTIDAD -->
+        <section class="f-section" id="mfs1">
+          <div class="f-section-head">
+            <div class="f-section-num">01</div>
+            <div class="f-section-title-block">
+              <div class="f-section-title">Identidad <em>del plan.</em></div>
+              <div class="f-section-sub">Quién dirige, en qué Q, fecha de presentación al CEO.</div>
+            </div>
+          </div>
+          <div class="f-fields-grid">
+            <div class="f-field readonly">
+              <label class="f-field-label">Director</label>
+              <div class="f-field-static">${u?.name || '—'}</div>
+            </div>
+            <div class="f-field readonly">
+              <label class="f-field-label">Área</label>
+              <div class="f-field-static">Growth & Marketing</div>
+            </div>
+            <div class="f-field readonly">
+              <label class="f-field-label">Trimestre</label>
+              <div class="f-field-static">${q?.name || '—'}</div>
+            </div>
+            <div class="f-field">
+              <label class="f-field-label">Fecha de presentación al CEO</label>
+              <input type="date" data-field="presentation_date" data-target="plan" class="f-field-input" />
+              <div class="f-field-help">La fecha en que vas a defender esta tesis frente a Teo y Facu. Idealmente la apertura del Q.</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 02 · TESIS DEL Q -->
+        <section class="f-section" id="mfs2">
+          <div class="f-section-head">
+            <div class="f-section-num">02</div>
+            <div class="f-section-title-block">
+              <div class="f-section-title">Tesis <em>del Q.</em></div>
+              <div class="f-section-sub">La brújula. Lo que va a guiar las decisiones de Contenido, Comercial y Marcas founders durante todo el trimestre.</div>
+            </div>
+          </div>
+
+          <div class="f-field">
+            <label class="f-field-label">Narrativa macro del Q</label>
+            <textarea data-field="mkt_tesis_narrativa" data-target="plan" class="f-field-textarea" rows="3" placeholder="Ej: Este Q hablamos de cómo el founder de B2B escala su voz sin perder autoría. Mostramos sistemas, no solo resultados."></textarea>
+            <div class="f-field-help"><strong>¿Cuál es la historia que Cáscara cuenta este trimestre?</strong> Una idea en 2-3 oraciones que sirva de brújula para todo el equipo. Es lo que cualquiera del equipo debería poder repetir si le preguntás de qué va el Q.</div>
+          </div>
+
+          <div class="f-field">
+            <label class="f-field-label">Hipótesis de mercado / momento</label>
+            <textarea data-field="mkt_tesis_hipotesis" data-target="plan" class="f-field-textarea" rows="3" placeholder="Ej: Los founders B2B están saturados de contenido performático y empiezan a buscar voces con criterio. Es el momento de mostrar autoridad técnica con personalidad."></textarea>
+            <div class="f-field-help"><strong>¿Qué estamos leyendo del contexto que justifica esta narrativa?</strong> Tendencia del mercado, dolor que detectamos, ventana de oportunidad. Si la hipótesis falla, vamos a saber por qué corregir el rumbo.</div>
+          </div>
+
+          <div class="f-field">
+            <label class="f-field-label">Lo que NO vamos a hacer este Q</label>
+            <textarea data-field="mkt_tesis_no_haremos" data-target="plan" class="f-field-textarea" rows="3" placeholder="Ej: No hacemos contenido de hooks virales. No salimos a B2C nuevo. No abrimos partnerships con agencias de marketing tradicional."></textarea>
+            <div class="f-field-help"><strong>Decisiones explícitas de descarte.</strong> Temas, audiencias o productos que están afuera este Q. Sirve para frenar pedidos del equipo y mantener foco. Si no hay nada acá, probablemente el foco esté difuso.</div>
+          </div>
+        </section>
+
+        <!-- 03 · AUDIENCIAS Y MENSAJES -->
+        <section class="f-section" id="mfs3">
+          <div class="f-section-head">
+            <div class="f-section-num">03</div>
+            <div class="f-section-title-block">
+              <div class="f-section-title">Audiencias y <em>mensajes.</em></div>
+              <div class="f-section-sub">A quiénes le hablamos y qué les decimos este Q.</div>
+            </div>
+          </div>
+
+          <div class="f-field">
+            <label class="f-field-label">Audiencias prioritarias del Q</label>
+            <textarea data-field="mkt_audiencias" data-target="plan" class="f-field-textarea" rows="4" placeholder="Ej:&#10;1. Founders B2B (50k+ MRR) que quieren escalar contenido sin perder autoría&#10;2. Marketers internos de SaaS que buscan referentes de criterio&#10;3. Founders que vienen del producto y están aprendiendo a comunicar"></textarea>
+            <div class="f-field-help"><strong>2 o 3 audiencias prioritarias, con descriptor concreto.</strong> Evitá generalidades. No "founders B2B" a secas — algo como "founders B2B que ya facturan +50k MRR y quieren escalar contenido". Mientras más nítida la audiencia, más fácil le resulta a Contenido construir las piezas.</div>
+          </div>
+
+          <div class="f-field">
+            <label class="f-field-label">Mensajes y temas centrales del Q</label>
+            <textarea data-field="mkt_mensajes" data-target="plan" class="f-field-textarea" rows="4" placeholder="Ej:&#10;1. La autoría no se delega, se sistematiza&#10;2. El founder es el sistema operativo de su marca&#10;3. Crecer sin perder voz se diseña, no se improvisa"></textarea>
+            <div class="f-field-help"><strong>3 o 4 ideas que vamos a defender este Q.</strong> Estos son los pilares conceptuales sobre los que Contenido construye piezas, Comercial arma el pitch, y las Marcas founders modulan su voz. Cada idea debería poder leerse aislada y tener sentido.</div>
+          </div>
+
+          <div class="f-field">
+            <label class="f-field-label">Tonalidad y posicionamiento del Q</label>
+            <textarea data-field="mkt_tonalidad" data-target="plan" class="f-field-textarea" rows="3" placeholder="Ej: Autoridad técnica con ironía. Maestros que comparten lo que aprendieron, sin pose ni performance."></textarea>
+            <div class="f-field-help"><strong>¿Desde qué lugar habla Cáscara este Q?</strong> No es el tono permanente — es el énfasis específico del trimestre. Esto guía cómo Contenido escribe captions, cómo Comercial conversa, cómo las Marcas founders modulan su registro.</div>
+          </div>
+        </section>
+
+        <!-- 04 · LANZAMIENTOS DEL Q (= Proyectos · van al Master Timeline) -->
+        <section class="f-section" id="mfs4">
+          <div class="f-section-head">
+            <div class="f-section-num">04</div>
+            <div class="f-section-title-block">
+              <div class="f-section-title">Lanzamientos <em>del Q.</em></div>
+              <div class="f-section-sub">Estos sí son Proyectos formales: productos, campañas o activaciones que tienen ventana de ejecución. Van al Master Timeline en la Audit Session.</div>
+            </div>
+          </div>
+
+          <div class="mkt-launches" id="mkt-launches-list">
+            <div class="f-empty">Cargando lanzamientos…</div>
+          </div>
+          <button type="button" class="f-btn-add" id="mkt-add-launch">+ Agregar lanzamiento</button>
+        </section>
+
+        <!-- 05 · DIRECTIVAS A OTRAS ÁREAS -->
+        <section class="f-section" id="mfs5">
+          <div class="f-section-head">
+            <div class="f-section-num">05</div>
+            <div class="f-section-title-block">
+              <div class="f-section-title">Directivas a <em>otras áreas.</em></div>
+              <div class="f-section-sub">El output principal de Marketing. Son inputs concretos que aparecen como contexto en los planes de Contenido, Comercial y Marcas founders.</div>
+            </div>
+          </div>
+
+          <div class="f-field">
+            <label class="f-field-label">A Contenido</label>
+            <textarea data-field="mkt_directivas_contenido" data-target="plan" class="f-field-textarea" rows="5" placeholder="Ej:&#10;— Construí 3 piezas que profundicen en 'autoría sistematizada' (largo formato + carrusel)&#10;— Prioridad: video largo con Facu sobre el sistema operativo de un founder&#10;— No hacer: hooks aspiracionales genéricos"></textarea>
+            <div class="f-field-help"><strong>Bajada concreta para Fede:</strong> qué temas debe construir, qué piezas son imprescindibles, qué formatos priorizar este Q, qué evitar. Esto se traduce en los Proyectos de Contenido. Cuanto más específica la directiva, menos fricción después.</div>
+          </div>
+
+          <div class="f-field">
+            <label class="f-field-label">A Comercial</label>
+            <textarea data-field="mkt_directivas_comercial" data-target="plan" class="f-field-textarea" rows="4" placeholder="Ej:&#10;— Messaging de discovery: arrancar desde 'sistema' no desde 'contenido'&#10;— Calificación: priorizar leads con equipo de marketing interno&#10;— Filtrar: leads sin equipo aún se mandan a Cascarita"></textarea>
+            <div class="f-field-help"><strong>Bajada concreta para Francisca:</strong> qué messaging sostener en discovery + qué criterios de calidad de lead estamos privilegiando este Q. Sirve para que la conversación de venta esté alineada con la narrativa.</div>
+          </div>
+
+          <div class="f-field">
+            <label class="f-field-label">A Marcas founders (Facu / Fede / Juana)</label>
+            <textarea data-field="mkt_directivas_marcas" data-target="plan" class="f-field-textarea" rows="5" placeholder="Ej:&#10;— Facu: estrategia de growth para founders B2B (autoridad técnica)&#10;— Fede: el sistema operativo de un creator (cómo se organiza el back)&#10;— Juana: producción visual con criterio de marca (poco volumen, alta densidad)"></textarea>
+            <div class="f-field-help"><strong>El ángulo específico de cada founder este Q.</strong> Cada uno tiene su voz, pero hay un énfasis que define el trimestre. Esto guía a Contenido cuando construye piezas con cada uno y le da coherencia al ecosistema.</div>
+          </div>
+        </section>
+
+        <!-- 06 · AUDITORÍA COMERCIAL -->
+        <section class="f-section" id="mfs6">
+          <div class="f-section-head">
+            <div class="f-section-num">06</div>
+            <div class="f-section-title-block">
+              <div class="f-section-title">Auditoría sobre <em>Comercial.</em></div>
+              <div class="f-section-sub">Marketing no dirige a Comercial, lo audita. Acá registrás qué estás observando del proceso comercial este Q.</div>
+            </div>
+          </div>
+
+          <div class="f-field">
+            <label class="f-field-label">Qué estoy monitoreando este Q</label>
+            <textarea data-field="mkt_auditoria_monitoreo" data-target="plan" class="f-field-textarea" rows="4" placeholder="Ej:&#10;— Tasa de show en discovery (lo veo en Calendly cada lunes)&#10;— Lag entre lead inbound y first contact (objetivo <48h)&#10;— Calidad de transcripción de discovery (¿se está pisando con el messaging del Q?)"></textarea>
+            <div class="f-field-help"><strong>Métricas, procesos o señales del área Comercial que vas a estar leyendo este Q.</strong> No es trabajo de Comercial — es la lectura que vos hacés. Hacé explícito qué mirás y con qué frecuencia.</div>
+          </div>
+
+          <div class="f-field">
+            <label class="f-field-label">Hallazgos del Q anterior + recomendaciones</label>
+            <textarea data-field="mkt_auditoria_hallazgos" data-target="plan" class="f-field-textarea" rows="4" placeholder="Ej:&#10;Hallazgo: el discovery arrancaba siempre desde 'contenido' en vez de 'sistema'.&#10;Recomendación: reescribir guión de los primeros 5 min para llevarlo al territorio sistémico, alineado con la tesis del Q."></textarea>
+            <div class="f-field-help"><strong>Lo que viste el Q pasado sobre el proceso comercial y qué ajuste proponés.</strong> Esto le llega a Francisca como contexto: saber qué viene del frente de auditoría le evita interpretarlo como crítica. Es el insumo de mejora.</div>
+          </div>
+        </section>
+
+        <!-- 07 · PRODUCTO B2C -->
+        <section class="f-section" id="mfs7">
+          <div class="f-section-head">
+            <div class="f-section-num">07</div>
+            <div class="f-section-title-block">
+              <div class="f-section-title">Estrategia de <em>Producto B2C.</em></div>
+              <div class="f-section-sub">Como Growth Partner, dirigís la estrategia de producto del B2C. La Cáscara y Cascarita son productos vivos — acá va su rumbo del Q.</div>
+            </div>
+          </div>
+
+          <div class="f-field">
+            <label class="f-field-label">Dirección estratégica de La Cáscara</label>
+            <textarea data-field="mkt_producto_cascara" data-target="plan" class="f-field-textarea" rows="4" placeholder="Ej: Este Q La Cáscara se enfoca en cohort de founders B2B (no abrimos a B2C). Sumamos una track de 'sistematización' en sesión 4-5. Pricing se mantiene pero se sube en Q03."></textarea>
+            <div class="f-field-help"><strong>¿Hacia dónde va el programa este Q?</strong> Cambios en estructura, nuevas tracks, ajustes de pricing, decisiones de cohort. La Cáscara como producto vivo: qué cambia y por qué.</div>
+          </div>
+
+          <div class="f-field">
+            <label class="f-field-label">Dirección estratégica de Cascarita</label>
+            <textarea data-field="mkt_producto_cascarita" data-target="plan" class="f-field-textarea" rows="4" placeholder="Ej: Cascarita pasa a formato cohort cerrado de 30 días. Lo lanzamos en quincena 2 con waitlist. Lo posicionamos como puerta de entrada a La Cáscara."></textarea>
+            <div class="f-field-help"><strong>Visión y rumbo de Cascarita este Q.</strong> Si es lanzamiento, formato y posicionamiento. Si ya está corriendo, evolución y aprendizajes.</div>
+          </div>
+
+          <div class="f-field">
+            <label class="f-field-label">Decisiones de producto del Q</label>
+            <textarea data-field="mkt_producto_decisiones" data-target="plan" class="f-field-textarea" rows="4" placeholder="Ej:&#10;— Cerramos el formato 1:1 — no escala&#10;— Activamos pricing tier 'Cáscara Pro' para founders que ya cursaron&#10;— Pausamos Experiences hasta Q03"></textarea>
+            <div class="f-field-help"><strong>Decisiones concretas sobre el portfolio B2C que ya tomaste o se van a tomar este Q.</strong> Lo que en otras áreas serían "hitos estratégicos": acá viven como decisiones explícitas del producto.</div>
+          </div>
+        </section>
+
+        <!-- 08 · ARTICULACIÓN -->
+        <section class="f-section" id="mfs8">
+          <div class="f-section-head">
+            <div class="f-section-num">08</div>
+            <div class="f-section-title-block">
+              <div class="f-section-title">Articulación con <em>otras áreas.</em></div>
+              <div class="f-section-sub">Qué necesita Marketing de los demás para que esta tesis se ejecute bien. La contracara de las directivas.</div>
+            </div>
+          </div>
+          <div id="mkt-articulaciones-list">
+            <div class="f-empty">Cargando articulaciones…</div>
+          </div>
+          <button type="button" class="f-btn-add" id="mkt-add-articulacion">+ Agregar articulación</button>
+        </section>
+
+      </div>
+    `;
+  },
+
+  async populate() {
+    const plan = Cascara.state.plan;
+    if (!plan) return;
+    // Cargar valores en textareas y date input
+    document.querySelectorAll('#mkt-form-root [data-field][data-target="plan"]').forEach(el => {
+      const field = el.dataset.field;
+      const val = plan[field];
+      if (val != null) el.value = val;
+    });
+  },
+
+  bindAutoSave() {
+    const root = document.getElementById('mkt-form-root');
+    if (!root) return;
+    root.addEventListener('input', (e) => {
+      const el = e.target;
+      const field = el.getAttribute('data-field');
+      const target = el.getAttribute('data-target');
+      if (!field || !target) return;
+      const value = el.value;
+      const key = `${target}:${field}`;
+      Cascara.debouncedSave(key, async () => {
+        await CascaraForm.ensurePlanExists();
+        if (!Cascara.state.plan) return;
+        if (target === 'plan') {
+          await Cascara.updatePlanField(field, value);
+        } else if (target === 'project') {
+          const pid = el.closest('.mkt-launch')?.dataset?.projectId;
+          if (pid) await Cascara.updateProjectField(pid, field, value);
+        } else if (target === 'articulation') {
+          const aid = el.closest('.mkt-articulacion')?.dataset?.articulationId;
+          if (aid) await Cascara.updateArticulationField(aid, field, value);
+        }
+      });
+    });
+
+    // Nav pills scroll
+    root.querySelectorAll('.fg-pill').forEach(p => {
+      p.onclick = () => {
+        root.querySelectorAll('.fg-pill').forEach(x => x.classList.remove('active'));
+        p.classList.add('active');
+        const target = document.getElementById(p.dataset.target);
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      };
+    });
+
+    // Lanzamientos: agregar
+    const addLaunchBtn = document.getElementById('mkt-add-launch');
+    if (addLaunchBtn) {
+      addLaunchBtn.onclick = async () => {
+        await CascaraForm.ensurePlanExists();
+        if (!Cascara.state.plan) return;
+        const p = await Cascara.createProject(Cascara.state.plan.id);
+        if (p) await this.renderLanzamientos();
+      };
+    }
+
+    // Articulaciones: agregar
+    const addArtBtn = document.getElementById('mkt-add-articulacion');
+    if (addArtBtn) {
+      addArtBtn.onclick = async () => {
+        await CascaraForm.ensurePlanExists();
+        if (!Cascara.state.plan) return;
+        const a = await Cascara.createArticulation({ plan_id: Cascara.state.plan.id });
+        if (a) await this.renderArticulaciones();
+      };
+    }
+  },
+
+  async renderLanzamientos() {
+    const list = document.getElementById('mkt-launches-list');
+    if (!list) return;
+    const plan = Cascara.state.plan;
+    if (!plan) {
+      list.innerHTML = '<div class="f-empty">Empezá agregando un lanzamiento.</div>';
+      return;
+    }
+    const { data: projects } = await Cascara.client.from('projects').select('*').eq('plan_id', plan.id).order('order_index');
+    if (!projects || projects.length === 0) {
+      list.innerHTML = '<div class="f-empty">Sin lanzamientos cargados todavía.</div>';
+      return;
+    }
+    list.innerHTML = projects.map((p, i) => `
+      <div class="mkt-launch" data-project-id="${p.id}">
+        <div class="mkt-launch-head">
+          <span class="mkt-launch-num">${String(i+1).padStart(2,'0')}</span>
+          <input data-field="name" data-target="project" class="mkt-launch-name" value="${this.esc(p.name)}" placeholder="Nombre del lanzamiento" />
+          <button type="button" class="mkt-launch-del" data-id="${p.id}">×</button>
+        </div>
+        <div class="mkt-launch-grid">
+          <div class="f-field">
+            <label class="f-field-label">Tipo de lanzamiento</label>
+            <select data-field="launch_type" data-target="project" class="f-field-input">
+              <option value="">Elegí tipo…</option>
+              <option value="producto_nuevo" ${p.launch_type==='producto_nuevo'?'selected':''}>Producto nuevo</option>
+              <option value="expansion" ${p.launch_type==='expansion'?'selected':''}>Expansión / nueva track</option>
+              <option value="campana" ${p.launch_type==='campana'?'selected':''}>Campaña</option>
+              <option value="activacion" ${p.launch_type==='activacion'?'selected':''}>Activación cultural</option>
+              <option value="experimento" ${p.launch_type==='experimento'?'selected':''}>Experimento</option>
+            </select>
+          </div>
+          <div class="f-field">
+            <label class="f-field-label">Hipótesis</label>
+            <textarea data-field="hypothesis" data-target="project" class="f-field-textarea" rows="2" placeholder="Si lanzamos X, esperamos Y porque Z.">${this.esc(p.hypothesis || '')}</textarea>
+            <div class="f-field-help">Qué creemos que va a pasar y por qué. Si la hipótesis falla, sabremos qué aprendizaje sacar.</div>
+          </div>
+          <div class="f-field">
+            <label class="f-field-label">KPI principal + objetivo</label>
+            <input data-field="kpi_summary" data-target="project" class="f-field-input" value="${this.esc(p.kpi_summary || '')}" placeholder="Ej: 200 inscripciones a la waitlist" />
+            <div class="f-field-help">Una sola métrica que defina éxito. Si el lanzamiento la cumple, el lanzamiento funcionó.</div>
+          </div>
+          <div class="f-field">
+            <label class="f-field-label">Ventana estimada (texto libre)</label>
+            <input data-field="time_window" data-target="project" class="f-field-input" value="${this.esc(p.time_window || '')}" placeholder="Ej: Quincena 02 — primera mitad" />
+            <div class="f-field-help">Tu intención antes de la Audit Session. La quincena exacta la define el Strategy Council en el Master Timeline.</div>
+          </div>
+        </div>
+      </div>
+    `).join('');
+
+    // Bind delete
+    list.querySelectorAll('.mkt-launch-del').forEach(btn => {
+      btn.onclick = async () => {
+        if (!confirm('¿Eliminar este lanzamiento?')) return;
+        await Cascara.client.from('projects').delete().eq('id', btn.dataset.id);
+        await this.renderLanzamientos();
+      };
+    });
+  },
+
+  async renderArticulaciones() {
+    const list = document.getElementById('mkt-articulaciones-list');
+    if (!list) return;
+    const plan = Cascara.state.plan;
+    if (!plan) {
+      list.innerHTML = '<div class="f-empty">Empezá agregando una articulación.</div>';
+      return;
+    }
+    const { data: arts } = await Cascara.client.from('articulations').select('*, with_area:areas(name)').eq('plan_id', plan.id);
+    const { data: areas } = await Cascara.client.from('areas').select('*').order('order_index');
+    const otherAreas = (areas || []).filter(a => a.id !== Cascara.state.area.id);
+    if (!arts || arts.length === 0) {
+      list.innerHTML = '<div class="f-empty">Sin articulaciones cargadas todavía.</div>';
+      return;
+    }
+    list.innerHTML = arts.map(a => `
+      <div class="mkt-articulacion" data-articulation-id="${a.id}">
+        <div class="mkt-art-head">
+          <select data-field="with_area_id" data-target="articulation" class="f-field-input">
+            <option value="">Elegí área…</option>
+            ${otherAreas.map(o => `<option value="${o.id}" ${a.with_area_id===o.id?'selected':''}>${this.esc(o.name)}</option>`).join('')}
+          </select>
+          <button type="button" class="mkt-launch-del" data-id="${a.id}" data-kind="art">×</button>
+        </div>
+        <div class="f-field">
+          <label class="f-field-label">Qué necesito de esa área</label>
+          <textarea data-field="what_needs" data-target="articulation" class="f-field-textarea" rows="3" placeholder="Ej: De Operaciones necesito que el sistema de tracking de waitlist esté listo en quincena 01.">${this.esc(a.what_needs || '')}</textarea>
+          <div class="f-field-help">Insumo, dato o acceso concreto que precisás de esa área para que la tesis del Q se ejecute bien.</div>
+        </div>
+      </div>
+    `).join('');
+
+    list.querySelectorAll('.mkt-launch-del[data-kind="art"]').forEach(btn => {
+      btn.onclick = async () => {
+        if (!confirm('¿Eliminar esta articulación?')) return;
+        await Cascara.client.from('articulations').delete().eq('id', btn.dataset.id);
+        await this.renderArticulaciones();
+      };
+    });
+  },
+
+  esc(s) { return (s == null ? '' : String(s)).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c])); },
+
+  injectStyles() {
+    if (document.getElementById('mkt-form-style')) return;
+    const s = document.createElement('style');
+    s.id = 'mkt-form-style';
+    s.textContent = `
+      .mkt-form-root { padding: 0 64px 80px; }
+      .mkt-form-root .mkt-nav { margin: 0 0 24px; }
+      .mkt-form-root .mkt-content { display: flex; flex-direction: column; gap: 28px; max-width: 920px; margin: 0 auto; }
+      .mkt-form-root .f-section { background: rgba(255,255,255,0.45); border: 1px solid rgba(0,0,0,0.06); border-radius: 18px; padding: 28px 32px; }
+      .mkt-form-root .f-field { margin-bottom: 20px; }
+      .mkt-form-root .f-field-help { font-size: 12px; color: var(--ink-muted, #52525A); line-height: 1.5; margin-top: 8px; font-style: italic; }
+      .mkt-form-root .f-field-help strong { color: var(--ink); font-style: normal; font-weight: 700; }
+      .mkt-form-root .f-field-textarea, .mkt-form-root .f-field-input { width: 100%; padding: 11px 14px; border: 1px solid rgba(0,0,0,0.12); border-radius: 8px; font-family: inherit; font-size: 14px; line-height: 1.5; background: #fff; color: var(--ink); resize: vertical; }
+      .mkt-form-root .f-field-textarea:focus, .mkt-form-root .f-field-input:focus { outline: none; border-color: #10069F; }
+      .mkt-form-root .f-field-static { padding: 11px 14px; font-size: 14px; color: var(--ink); background: rgba(0,0,0,0.03); border-radius: 8px; }
+      .mkt-form-root .f-field-label { display: block; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-muted); margin-bottom: 8px; }
+      .mkt-form-root .f-empty { padding: 28px; text-align: center; color: var(--ink-muted); font-style: italic; background: rgba(0,0,0,0.03); border-radius: 10px; }
+      .mkt-form-root .f-btn-add { margin-top: 16px; padding: 11px 20px; background: transparent; border: 1.5px dashed rgba(16,6,159,0.4); color: #10069F; border-radius: 8px; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+      .mkt-form-root .f-btn-add:hover { background: rgba(16,6,159,0.05); border-style: solid; }
+      .mkt-form-root .f-fields-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; }
+
+      /* Lanzamientos */
+      .mkt-launch { background: #fff; border: 1px solid rgba(0,0,0,0.08); border-radius: 14px; padding: 18px 22px; margin-bottom: 12px; }
+      .mkt-launch-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+      .mkt-launch-num { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; color: var(--ink-muted); background: rgba(0,0,0,0.05); padding: 4px 8px; border-radius: 6px; }
+      .mkt-launch-name { flex: 1; padding: 8px 12px; border: 1px solid rgba(0,0,0,0.12); border-radius: 8px; font-family: inherit; font-size: 14px; font-weight: 600; }
+      .mkt-launch-name:focus { outline: none; border-color: #10069F; }
+      .mkt-launch-del { background: transparent; border: 0; font-size: 22px; color: var(--ink-muted); cursor: pointer; padding: 0 8px; }
+      .mkt-launch-del:hover { color: #C53030; }
+      .mkt-launch-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+      /* Articulaciones */
+      .mkt-articulacion { background: #fff; border: 1px solid rgba(0,0,0,0.08); border-radius: 14px; padding: 18px 22px; margin-bottom: 12px; }
+      .mkt-art-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+      .mkt-art-head .f-field-input { flex: 1; }
+    `;
+    document.head.appendChild(s);
+  },
+};
+window.CascaraFormMarketing = CascaraFormMarketing;
 
 /* ============================================================
  * CascaraHome — refresca las 3 cards del home con data real
