@@ -4534,7 +4534,7 @@ body.cascara-restoring #view-login.active {
             <div class="f-section-title">Contexto del Q</div>
             <div class="f-section-sub">Visión + aprendizajes + lo que NO vamos a hacer</div>
           </div>
-          <div class="f-section-status">0 de 3</div>
+          <div class="f-section-status">Sin iniciar</div>
         </div>
         <div class="f-field">
           <div class="f-field-label">Visión del área <span class="required">obligatorio</span></div>
@@ -4558,9 +4558,9 @@ body.cascara-restoring #view-login.active {
           <div class="f-section-num">03</div>
           <div class="f-section-title-block">
             <div class="f-section-title">Proyectos del Q</div>
-            <div class="f-section-sub">Entre 4 y 7 Proyectos. Cada uno con su Responsable, KPIs e hitos.</div>
+            <div class="f-section-sub">Cargá los Proyectos del Q. Cada uno con su Responsable, KPIs e hitos. <strong>No hay tope</strong> — cargá los que tu área necesita.</div>
           </div>
-          <div class="f-section-status">0 de 4</div>
+          <div class="f-section-status">Sin iniciar</div>
         </div>
         <div class="f-resp-list">
           <button class="f-resp-add">+ agregar Proyecto</button>
@@ -4574,7 +4574,7 @@ body.cascara-restoring #view-login.active {
             <div class="f-section-title">Dependencias y pedidos</div>
             <div class="f-section-sub">Lo que necesitás de otros para que el Q funcione</div>
           </div>
-          <div class="f-section-status">0 de 2</div>
+          <div class="f-section-status">Sin iniciar</div>
         </div>
         <div class="f-field">
           <div class="f-field-label">Dependencias críticas con otras áreas</div>
@@ -4597,7 +4597,7 @@ body.cascara-restoring #view-login.active {
             <div class="f-section-title">Equipo y recursos del Q</div>
             <div class="f-section-sub">Personas, presupuesto, herramientas</div>
           </div>
-          <div class="f-section-status">0 de 3</div>
+          <div class="f-section-status">Sin iniciar</div>
         </div>
         <div class="f-field">
           <div class="f-field-label">Equipo del área en el Q</div>
@@ -4630,7 +4630,7 @@ body.cascara-restoring #view-login.active {
             <div class="f-section-title">Ritmo del Q</div>
             <div class="f-section-sub">Qué tiene que estar pasando en cada quincena. El termómetro entre check-ins.</div>
           </div>
-          <div class="f-section-status">0 de 6</div>
+          <div class="f-section-status">Sin iniciar</div>
         </div>
         <div class="f-fortnight-grid"></div>
         <div class="f-field" style="margin-top:20px;">
@@ -5115,8 +5115,8 @@ goTo = function(viewName) {
       if (badge) {
         badge.classList.remove('done');
         if (total > 0 && filled === total) { badge.textContent = 'Completo'; badge.classList.add('done'); }
-        else if (filled === 0) { badge.textContent = 'Pendiente'; }
-        else { badge.textContent = filled + ' de ' + total; }
+        else if (filled === 0) { badge.textContent = 'Sin iniciar'; }
+        else { badge.textContent = 'En progreso'; }
       }
     });
     const pct = totalAll ? Math.round(filledAll / totalAll * 100) : 0;

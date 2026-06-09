@@ -1274,7 +1274,7 @@ const CascaraForm = {
         </div>
         <div class="f-field f-kpi-list">
           <div class="f-field-label">KPIs comprometidos <span class="required">obligatorio</span></div>
-          <div class="f-field-help"><strong>Cargá ahora el nombre del KPI y su número objetivo</strong>. <strong>La fecha de cumplimiento</strong> se completa <strong>después del Audit Session</strong>, cuando sepas en qué quincena del Q vive el proyecto.</div>
+          <div class="f-field-help"><strong>Cargá los KPIs que sostengan este Proyecto.</strong> Sin tope: cargá los que necesites medir. Cada uno con nombre + número objetivo. <strong>La fecha de cumplimiento</strong> se completa <strong>después del Audit Session</strong>, cuando sepas en qué quincena del Q vive el proyecto.</div>
           <div class="f-kpi-rows"></div>
           <button class="f-kpi-add" type="button">+ agregar KPI</button>
         </div>
