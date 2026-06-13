@@ -3838,7 +3838,7 @@ const CascaraExport = {
   },
 
   printPDF() {
-    // Inyectar print stylesheet temporal que limpia chrome y deja solo el contenido del form
+    // 1. Print stylesheet: limpia chrome y prepara el form para impresión
     let style = document.getElementById('cascara-print-style');
     if (!style) {
       style = document.createElement('style');
@@ -3852,15 +3852,74 @@ const CascaraExport = {
         .fg-topbar, .fg-nav, .fg-actions, .fg-progress-card, .fg-footer-nav, .cascara-comments-marker, .cascara-comments-panel, .fg-back { display: none !important; }
         .f-section { page-break-inside: avoid; break-inside: avoid; background: #fff !important; border: 1px solid #ccc !important; margin-bottom: 14px !important; padding: 16px !important; }
         .f-field-help { color: #555 !important; }
-        textarea, input, select { border: 0 !important; background: transparent !important; padding: 2px 0 !important; resize: none !important; }
         .f-resp-add, .f-kpi-add, .f-milestone-add, .f-dep-add, .f-btn-add { display: none !important; }
         .f-resp-remove, .f-kpi-remove, .mkt-launch-del { display: none !important; }
         .required, .f-section-status { display: none !important; }
         h1, .f-section-title { color: #10069F !important; }
+        /* Inputs y textareas: ocultar el control nativo en print, mostrar el clon de texto */
+        .cascara-print-only { display: none; }
+        @media print {
+          .cascara-print-hide { display: none !important; }
+          .cascara-print-only {
+            display: block !important;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: inherit;
+            font-size: 13px;
+            line-height: 1.55;
+            color: #0A0A0C;
+            padding: 4px 0;
+            border-bottom: 1px dotted #ccc;
+            min-height: 18px;
+          }
+          .cascara-print-only:empty::before {
+            content: '—';
+            color: #aaa;
+          }
+        }
       `;
       document.head.appendChild(style);
     }
+
+    // 2. Para CADA input/textarea/select del form, generar un clon de texto con el valor completo
+    const view = document.getElementById('view-formulario');
+    if (view) {
+      // Limpiar clones previos
+      view.querySelectorAll('.cascara-print-only').forEach(el => el.remove());
+      const fields = view.querySelectorAll('input, textarea, select');
+      fields.forEach(el => {
+        // Ignorar botones e inputs sin valor representable
+        if (['button', 'submit', 'reset'].includes(el.type)) return;
+        let val = '';
+        if (el.tagName === 'SELECT') {
+          val = el.options[el.selectedIndex]?.text || '';
+        } else {
+          val = el.value || '';
+        }
+        // Crear clon de texto con el valor completo
+        const clone = document.createElement('div');
+        clone.className = 'cascara-print-only';
+        clone.textContent = val;
+        // Marcar el control nativo como hide en print
+        el.classList.add('cascara-print-hide');
+        // Insertarlo justo después del control
+        el.parentNode.insertBefore(clone, el.nextSibling);
+      });
+    }
+
+    // 3. Disparar print
     window.print();
+
+    // 4. Limpieza después del diálogo de impresión
+    const cleanup = () => {
+      if (!view) return;
+      view.querySelectorAll('.cascara-print-only').forEach(el => el.remove());
+      view.querySelectorAll('.cascara-print-hide').forEach(el => el.classList.remove('cascara-print-hide'));
+    };
+    // afterprint dispara en la mayoría de browsers
+    window.addEventListener('afterprint', cleanup, { once: true });
+    // Fallback: si afterprint no dispara, limpiar tras un timeout
+    setTimeout(cleanup, 60_000);
   },
 };
 window.CascaraExport = CascaraExport;
