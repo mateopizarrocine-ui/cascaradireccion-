@@ -836,6 +836,9 @@ const CascaraForm = {
     // SOLO load — no create. Plan se crea on-demand cuando el director escribe algo.
     await Cascara.loadExistingPlan();
 
+    // Pisar siempre el header del form con el state real (anti-hardcoded)
+    this.refreshFormHeader();
+
     // Marketing tiene un form distinto: documento estratégico del Q
     if (Cascara.state.area.slug === 'marketing' || Cascara.state.area.name?.toLowerCase().includes('marketing')) {
       return CascaraFormMarketing.enter();
@@ -874,6 +877,19 @@ const CascaraForm = {
     if (Cascara.isAdmin() && Cascara.state.plan) {
       CascaraComments.attachToForm();
     }
+  },
+
+  // ---------- HEADER (single source of truth from Cascara.state) ----------
+  refreshFormHeader() {
+    const area = Cascara.state.area;
+    const user = Cascara.state.user;
+    const q = Cascara.state.quarter;
+    const metaArea = document.getElementById('fg-meta-area');
+    if (metaArea) metaArea.textContent = area?.name || '—';
+    const metaDir = document.getElementById('fg-meta-director');
+    if (metaDir) metaDir.textContent = user?.name?.split(' ')[0] || user?.name || '—';
+    const metaQ = document.getElementById('fg-meta-q');
+    if (metaQ) metaQ.textContent = q?.name || '—';
   },
 
   // ---------- LAZY CREATE ----------
@@ -3873,6 +3889,8 @@ const CascaraFormMarketing = {
     if (metaArea) metaArea.textContent = Cascara.state.area.name;
     const metaDir = document.getElementById('fg-meta-director');
     if (metaDir) metaDir.textContent = Cascara.state.user.name.split(' ')[0];
+    const metaQ = document.getElementById('fg-meta-q');
+    if (metaQ) metaQ.textContent = Cascara.state.quarter?.name || '—';
     const titleEl = view.querySelector('.fg-title');
     if (titleEl) titleEl.innerHTML = 'Documento estratégico<em>del Q.</em>';
     const leadEl = view.querySelector('.fg-lead');
