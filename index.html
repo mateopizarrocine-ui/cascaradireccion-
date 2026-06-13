@@ -3585,13 +3585,12 @@ body.cascara-restoring #view-login.active {
             </div>
             <div class="hcard-progress"><div class="hcard-progress-fill"></div></div>
             <div class="hcard-checks">
-              <div class="hck done"><span class="hck-num">01</span><span class="hck-label">Identidad</span></div>
-              <div class="hck done"><span class="hck-num">02</span><span class="hck-label">Visión</span></div>
-              <div class="hck done"><span class="hck-num">03</span><span class="hck-label">Responsabilidades</span></div>
-              <div class="hck done"><span class="hck-num">04</span><span class="hck-label">Articulación</span></div>
-              <div class="hck done"><span class="hck-num">05</span><span class="hck-label">Equipo</span></div>
-              <div class="hck"><span class="hck-num">06</span><span class="hck-label">Mejoras</span></div>
-              <div class="hck"><span class="hck-num">07</span><span class="hck-label">Calendario</span></div>
+              <div class="hck"><span class="hck-num">01</span><span class="hck-label">Identidad</span></div>
+              <div class="hck"><span class="hck-num">02</span><span class="hck-label">Contexto</span></div>
+              <div class="hck"><span class="hck-num">03</span><span class="hck-label">Proyectos</span></div>
+              <div class="hck"><span class="hck-num">04</span><span class="hck-label">Dependencias</span></div>
+              <div class="hck"><span class="hck-num">05</span><span class="hck-label">Equipo</span></div>
+              <div class="hck"><span class="hck-num">06</span><span class="hck-label">Ritmo del Q</span></div>
             </div>
           </div>
 
@@ -3683,7 +3682,7 @@ body.cascara-restoring #view-login.active {
         <div class="hcard-inner">
           <div class="hcard-tag">Card 03 · Documentación</div>
           <div class="hcard-head">
-            <div class="hcard-title">Las 7<em>presentaciones.</em></div>
+            <div class="hcard-title">Las 6<em>presentaciones.</em></div>
             <div class="hcard-lead">Acceso a las planificaciones presentadas de cada departamento del Q. Pensadas para consultar cuando necesites contexto del resto del equipo.</div>
           </div>
 
@@ -3694,7 +3693,6 @@ body.cascara-restoring #view-login.active {
             <div class="preso-mini" onclick="event.stopPropagation(); openPreso('comercial');"><span class="num">04</span>Comercial</div>
             <div class="preso-mini" onclick="event.stopPropagation(); openPreso('operaciones');"><span class="num">05</span>Operaciones y Fulfillment</div>
             <div class="preso-mini" onclick="event.stopPropagation(); openPreso('admin');"><span class="num">06</span>Admin &amp; Finanzas</div>
-            <div class="preso-mini" onclick="event.stopPropagation(); openPreso('capital');"><span class="num">07</span>Capital Humano</div>
           </div>
 
           <div class="hcard-cta inverted">
@@ -4462,7 +4460,8 @@ body.cascara-restoring #view-login.active {
           <span class="fg-status-dot"></span>
           <span id="fg-status-text"><strong>Borrador</strong> · sin guardar</span>
         </div>
-        <button class="fg-btn-secondary" id="fg-btn-guardar">Guardar</button>
+        <button class="fg-btn-secondary" id="fg-btn-export-json" title="Descargar el plan estructurado en JSON (útil para llevarlo a Claude)">Exportar JSON</button>
+        <button class="fg-btn-secondary" id="fg-btn-export-pdf" title="Imprimir el plan como PDF">Exportar PDF</button>
         <button class="fg-btn-primary" id="fg-btn-enviar">Enviar al CEO</button>
       </div>
     </div>
@@ -4756,7 +4755,7 @@ body.cascara-restoring #view-login.active {
     <div class="presos-head">
       <div class="presos-head-left">
         <div class="presos-eyebrow">Áreas · Planes del Q en curso</div>
-        <div class="presos-title">Las 7<br/><em>presentaciones.</em></div>
+        <div class="presos-title">Las 6<br/><em>presentaciones.</em></div>
         <div class="presos-lead">Cada departamento presentó su plan trimestral con responsabilidades, KPIs y articulación con el resto del equipo. Acá podés ver todas.</div>
       </div>
       <button class="ext-back" onclick="goTo('home')">← Volver al home</button>
@@ -4847,21 +4846,6 @@ body.cascara-restoring #view-login.active {
         <div>
           <div class="preso-name">Admin & Finanzas</div>
           <div class="preso-director">Facu Couyet · Interino</div>
-        </div>
-        <div class="preso-cta">
-          <span>Ver presentación</span>
-          <span class="preso-cta-arrow">→</span>
-        </div>
-      </div>
-
-      <div class="preso-card" onclick="openPreso('capital')">
-        <div class="preso-card-head">
-          <span class="preso-num">07</span>
-          <span class="preso-status ready">Presentada</span>
-        </div>
-        <div>
-          <div class="preso-name">Capital Humano</div>
-          <div class="preso-director">Facundo Couyet · CEO</div>
         </div>
         <div class="preso-cta">
           <span>Ver presentación</span>

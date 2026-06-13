@@ -861,6 +861,11 @@ const CascaraForm = {
     if (!this.inited) {
       this.setupAutoSave();
       this.injectImportButtons();
+      // Wire export buttons (idempotente — onclick reemplaza el anterior)
+      const btnJson = document.getElementById('fg-btn-export-json');
+      if (btnJson) btnJson.onclick = () => CascaraExport.downloadJSON();
+      const btnPdf = document.getElementById('fg-btn-export-pdf');
+      if (btnPdf) btnPdf.onclick = () => CascaraExport.printPDF();
       this.inited = true;
     }
 
@@ -2103,7 +2108,7 @@ const CascaraAdmin = {
           <div class="ad-qctrl-derived" id="ad-quarter-derived"></div>
         </div>
 
-        <div class="ad-section-title">Las 7 áreas</div>
+        <div class="ad-section-title">Las 6 áreas</div>
         <div class="ad-grid" id="ad-grid">Cargando…</div>
         <div class="ad-activity-wrap" id="ad-activity-wrap"></div>
       </div>
@@ -3721,6 +3726,130 @@ const CascaraAudit = {
 window.CascaraAudit = CascaraAudit;
 
 /* ============================================================
+ * CascaraExport — descarga el plan en JSON (para Claude u otros) o lo imprime como PDF
+ * ============================================================ */
+const CascaraExport = {
+  async collectPlanData() {
+    const plan = Cascara.state.plan;
+    const area = Cascara.state.area;
+    const quarter = Cascara.state.quarter;
+    if (!plan || !area) return null;
+
+    const [projects, team, articulations, months, milestones, kpis] = await Promise.all([
+      Cascara.client.from('projects').select('*').eq('plan_id', plan.id).order('order_index'),
+      Cascara.client.from('team_members').select('*').eq('plan_id', plan.id),
+      Cascara.client.from('articulations').select('*, with_area:areas(name, slug)').eq('plan_id', plan.id),
+      Cascara.client.from('calendar_months').select('*').eq('plan_id', plan.id),
+      // milestones de cualquier proyecto del plan
+      Cascara.client.from('project_milestones').select('*'),
+      Cascara.client.from('kpis').select('*'),
+    ]);
+
+    const projIds = new Set((projects.data || []).map(p => p.id));
+    const projMs = (milestones.data || []).filter(m => projIds.has(m.project_id));
+    const projKpis = (kpis.data || []).filter(k => projIds.has(k.project_id));
+
+    return {
+      meta: {
+        exported_at: new Date().toISOString(),
+        area: { name: area.name, slug: area.slug },
+        quarter: quarter ? { name: quarter.name, start_date: quarter.start_date, audit_status: quarter.audit_status } : null,
+        director: Cascara.state.user?.name,
+      },
+      plan: {
+        status: plan.status,
+        presentation_date: plan.presentation_date,
+        vision_text: plan.vision_text,
+        learnings_text: plan.learnings_text,
+        not_doing_text: plan.not_doing_text,
+        ceo_coo_request: plan.ceo_coo_request,
+        fortnight_notes: plan.fortnight_notes,
+        budget: plan.budget,
+        hiring_plan: plan.hiring_plan,
+        tools_services: plan.tools_services,
+        // campos marketing-only (si el plan es de marketing, vienen llenos)
+        marketing: area.slug === 'marketing' ? {
+          tesis_narrativa: plan.mkt_tesis_narrativa,
+          tesis_hipotesis: plan.mkt_tesis_hipotesis,
+          tesis_no_haremos: plan.mkt_tesis_no_haremos,
+          audiencias: plan.mkt_audiencias,
+          mensajes: plan.mkt_mensajes,
+          tonalidad: plan.mkt_tonalidad,
+          directivas_contenido: plan.mkt_directivas_contenido,
+          directivas_comercial: plan.mkt_directivas_comercial,
+          directivas_marcas: plan.mkt_directivas_marcas,
+          auditoria_monitoreo: plan.mkt_auditoria_monitoreo,
+          auditoria_hallazgos: plan.mkt_auditoria_hallazgos,
+          producto_cascara: plan.mkt_producto_cascara,
+          producto_cascarita: plan.mkt_producto_cascarita,
+          producto_decisiones: plan.mkt_producto_decisiones,
+        } : null,
+      },
+      projects: (projects.data || []).map(p => ({
+        name: p.name,
+        responsible_name: p.responsible_name,
+        subresponsables: p.subresponsables,
+        scope_execution: p.scope_execution,
+        hypothesis: p.hypothesis,
+        objective: p.objective,
+        why_priority: p.why_priority,
+        business_impact: p.business_impact,
+        risks: p.risks,
+        launch_type: p.launch_type,
+        time_window: p.time_window,
+        kpi_summary: p.kpi_summary,
+        milestones: projMs.filter(m => m.project_id === p.id).map(m => ({ title: m.title, due_date: m.due_date, status: m.status })),
+        kpis: projKpis.filter(k => k.project_id === p.id).map(k => ({ name: k.name, target: k.target, deadline: k.deadline })),
+      })),
+      team: (team.data || []).map(m => ({ name: m.name, dedication: m.dedication, personal_goal: m.personal_goal, role_in_q: m.role_in_q })),
+      articulations: (articulations.data || []).map(a => ({ with_area: a.with_area?.name, what_needs: a.what_needs, what_delivers: a.what_delivers })),
+      calendar: (months.data || []).map(c => ({ month: c.month, milestones: c.milestones })),
+    };
+  },
+
+  async downloadJSON() {
+    const data = await this.collectPlanData();
+    if (!data) { alert('No hay plan cargado para exportar.'); return; }
+    const area = data.meta.area.slug;
+    const q = data.meta.quarter?.name || 'sin-q';
+    const stamp = new Date().toISOString().slice(0, 10);
+    const fname = `plan-${area}-${q}-${stamp}.json`;
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = fname; document.body.appendChild(a); a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+  },
+
+  printPDF() {
+    // Inyectar print stylesheet temporal que limpia chrome y deja solo el contenido del form
+    let style = document.getElementById('cascara-print-style');
+    if (!style) {
+      style = document.createElement('style');
+      style.id = 'cascara-print-style';
+      style.media = 'print';
+      style.textContent = `
+        @page { size: A4; margin: 18mm; }
+        body * { visibility: hidden; }
+        #view-formulario, #view-formulario * { visibility: visible; }
+        #view-formulario { position: absolute; left: 0; top: 0; width: 100%; background: #fff !important; }
+        .fg-topbar, .fg-nav, .fg-actions, .fg-progress-card, .fg-footer-nav, .cascara-comments-marker, .cascara-comments-panel, .fg-back { display: none !important; }
+        .f-section { page-break-inside: avoid; break-inside: avoid; background: #fff !important; border: 1px solid #ccc !important; margin-bottom: 14px !important; padding: 16px !important; }
+        .f-field-help { color: #555 !important; }
+        textarea, input, select { border: 0 !important; background: transparent !important; padding: 2px 0 !important; resize: none !important; }
+        .f-resp-add, .f-kpi-add, .f-milestone-add, .f-dep-add, .f-btn-add { display: none !important; }
+        .f-resp-remove, .f-kpi-remove, .mkt-launch-del { display: none !important; }
+        .required, .f-section-status { display: none !important; }
+        h1, .f-section-title { color: #10069F !important; }
+      `;
+      document.head.appendChild(style);
+    }
+    window.print();
+  },
+};
+window.CascaraExport = CascaraExport;
+
+/* ============================================================
  * CascaraFormMarketing — form especial para el área de Marketing
  * Es un DOCUMENTO ESTRATÉGICO del Q, no una lista de proyectos.
  * Marketing dirige el QUÉ del ecosistema; sus directivas se distribuyen
@@ -4289,7 +4418,7 @@ const CascaraHome = {
     if (areaLbl) areaLbl.textContent = `Tu plan · ${area.name}`;
 
     const valEl = document.querySelector('.hcard.mine .hcs-val');
-    if (valEl) valEl.innerHTML = `${completion.completed} secciones <em>de 7</em> completas`;
+    if (valEl) valEl.innerHTML = `${completion.completed} secciones <em>de 6</em> completas`;
 
     const pctEl = document.querySelector('.hcard.mine .hcs-pct');
     if (pctEl) pctEl.textContent = `${completion.pct}%`;
@@ -4308,7 +4437,7 @@ const CascaraHome = {
     if (!plan || completion.completed === 0) {
       if (ctaLbl) ctaLbl.textContent = 'Plan en blanco';
       if (ctaAction) ctaAction.textContent = 'Empezar mi planificación';
-    } else if (completion.completed === 7) {
+    } else if (completion.completed === 6) {
       if (ctaLbl) ctaLbl.textContent = 'Listo para presentar';
       if (ctaAction) ctaAction.textContent = 'Revisar mi planificación';
     } else {
@@ -4318,24 +4447,29 @@ const CascaraHome = {
   },
 
   async calculateCompletion(plan) {
-    if (!plan) return { completed: 0, pct: 0, sectionStates: [false, false, false, false, false, false, false] };
+    // 6 secciones: Identidad / Contexto / Proyectos / Dependencias / Equipo / Ritmo del Q
+    if (!plan) return { completed: 0, pct: 0, sectionStates: [false, false, false, false, false, false] };
 
+    // 01 Identidad: fecha de presentación o coo_apoyo
     const s1 = !!(plan.presentation_date || plan.coo_apoyo_user_id);
-    const s2 = !!plan.vision_text;
+    // 02 Contexto del Q: visión + aprendizajes + lo que NO vamos a hacer
+    const s2 = !!(plan.vision_text || plan.learnings_text || plan.not_doing_text);
+    // 03 Proyectos: al menos uno con nombre
     const { data: projects } = await Cascara.client.from('projects').select('id, name').eq('plan_id', plan.id);
     const s3 = (projects || []).some(p => p.name && p.name.trim());
+    // 04 Dependencias: articulaciones o pedidos al CEO
     const { data: articulations } = await Cascara.client.from('articulations').select('id, what_delivers, what_needs').eq('plan_id', plan.id);
-    const s4 = (articulations || []).some(a => (a.what_delivers && a.what_delivers.trim()) || (a.what_needs && a.what_needs.trim()));
+    const s4 = (articulations || []).some(a => (a.what_delivers && a.what_delivers.trim()) || (a.what_needs && a.what_needs.trim())) || !!plan.ceo_coo_request;
+    // 05 Equipo: al menos un team member
     const { data: team } = await Cascara.client.from('team_members').select('id, name').eq('plan_id', plan.id);
     const s5 = (team || []).some(t => t.name && t.name.trim());
-    const { data: imps } = await Cascara.client.from('improvements').select('id, what_improve').eq('plan_id', plan.id);
-    const s6 = (imps || []).some(i => i.what_improve && i.what_improve.trim());
+    // 06 Ritmo del Q: meses con milestones (fechas o notas)
     const { data: months } = await Cascara.client.from('calendar_months').select('id, milestones').eq('plan_id', plan.id);
-    const s7 = (months || []).some(m => m.milestones && m.milestones.trim());
+    const s6 = (months || []).some(m => m.milestones && m.milestones.trim()) || !!plan.fortnight_notes;
 
-    const sectionStates = [s1, s2, s3, s4, s5, s6, s7];
+    const sectionStates = [s1, s2, s3, s4, s5, s6];
     const completed = sectionStates.filter(x => x).length;
-    const pct = Math.round((completed / 7) * 100);
+    const pct = Math.round((completed / 6) * 100);
     return { completed, pct, sectionStates };
   },
 
@@ -4350,6 +4484,13 @@ const CascaraHome = {
     const { data: plans } = await Cascara.client.from('plans').select('*').eq('quarter_id', Cascara.state.quarter.id);
     const planByArea = new Map((plans || []).map(p => [p.area_id, p]));
 
+    // Calcular % del plan propio (para regla de unlock a peers)
+    const myPlan = planByArea.get(myArea.id);
+    let myCompletion = { pct: 0, completed: 0 };
+    if (myPlan) myCompletion = await this.calculateCompletion(myPlan);
+    const PEER_UNLOCK_THRESHOLD = 70;
+    const peersUnlocked = myCompletion.pct >= PEER_UNLOCK_THRESHOLD || Cascara.isAdmin();
+
     list.innerHTML = '';
     (areas || []).forEach((a, i) => {
       const isMine = a.id === myArea.id;
@@ -4361,9 +4502,7 @@ const CascaraHome = {
       let clickHandler = null;
 
       if (isMine) {
-        // Calcular % desde plan
-        const pct = plan ? Math.round((this.quickCount(plan) / 7) * 100) : 0;
-        statusText = plan ? `${pct}% cargado` : 'Sin iniciar';
+        statusText = myPlan ? `${myCompletion.pct}% cargado` : 'Sin iniciar';
         statusClass = 'pending';
         actionText = `Tu plan <span class="arrow">→</span>`;
         rowClass = 'self';
@@ -4373,15 +4512,27 @@ const CascaraHome = {
         statusClass = 'done';
         actionText = `Ver plan <span class="arrow">→</span>`;
         clickHandler = (e) => { e.stopPropagation(); window.openPreso(a.slug); };
+      } else if (plan && peersUnlocked) {
+        // El plan ajeno está en borrador, pero el director propio ya pasó el 70% → puede asomarse al borrador
+        statusText = 'Borrador visible';
+        statusClass = 'pending';
+        actionText = `Ver borrador <span class="arrow">→</span>`;
+        clickHandler = (e) => { e.stopPropagation(); window.openPreso(a.slug); };
       } else if (plan) {
         statusText = 'En proceso';
         statusClass = 'pending';
-        actionText = 'Bloqueado';
+        actionText = 'Llegá al 70%';
+        rowClass = 'locked';
+      } else if (peersUnlocked) {
+        // No hay plan del peer todavía, pero el director propio cumplió: marcar como "Sin iniciar"
+        statusText = 'Sin iniciar';
+        statusClass = 'locked';
+        actionText = '—';
         rowClass = 'locked';
       } else {
         statusText = 'Sin iniciar';
         statusClass = 'locked';
-        actionText = 'Bloqueado';
+        actionText = 'Llegá al 70%';
         rowClass = 'locked';
       }
 
