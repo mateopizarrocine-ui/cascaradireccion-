@@ -850,20 +850,27 @@ const CascaraForm = {
     // Renderizar banner contextual de audit_status
     this.renderAuditBanner();
 
-    await this.populateFs1();
-    await this.populateFs2();
-    await this.populateFs4Plan();
-    await this.populateFs5SingleFields();
-    await this.populateFs6Notas();
-    await this.renderProjects();
-    await this.renderDependencies();
-    await this.renderTeamMembers();
-    await this.renderFortnights();
-    this.showEmptyStateHint();
+    // Ejecutar cada paso aislado: si uno falla, los demás siguen y los botones siguen interactivos
+    const safe = async (label, fn) => {
+      try { await fn(); } catch (err) {
+        console.error(`[CascaraForm] ${label} falló:`, err);
+        this._showRuntimeError(label, err);
+      }
+    };
+    await safe('populateFs1', () => this.populateFs1());
+    await safe('populateFs2', () => this.populateFs2());
+    await safe('populateFs4Plan', () => this.populateFs4Plan());
+    await safe('populateFs5SingleFields', () => this.populateFs5SingleFields());
+    await safe('populateFs6Notas', () => this.populateFs6Notas());
+    await safe('renderProjects', () => this.renderProjects());
+    await safe('renderDependencies', () => this.renderDependencies());
+    await safe('renderTeamMembers', () => this.renderTeamMembers());
+    await safe('renderFortnights', () => this.renderFortnights());
+    try { this.showEmptyStateHint(); } catch (err) { console.warn('[CascaraForm] showEmptyStateHint:', err); }
 
     if (!this.inited) {
-      this.setupAutoSave();
-      this.injectImportButtons();
+      try { this.setupAutoSave(); } catch (err) { console.error('[CascaraForm] setupAutoSave:', err); }
+      try { this.injectImportButtons(); } catch (err) { console.error('[CascaraForm] injectImportButtons:', err); }
       // Wire export buttons (idempotente — onclick reemplaza el anterior)
       const btnJson = document.getElementById('fg-btn-export-json');
       if (btnJson) btnJson.onclick = () => CascaraExport.downloadJSON();
@@ -875,8 +882,20 @@ const CascaraForm = {
     // Hookea los comentarios al final (despues de renderizar todo)
     // Solo si ya hay plan creado (sino no hay nada que comentar)
     if (Cascara.isAdmin() && Cascara.state.plan) {
-      CascaraComments.attachToForm();
+      try { CascaraComments.attachToForm(); } catch (err) { console.warn('[CascaraForm] attachToForm:', err); }
     }
+  },
+
+  _showRuntimeError(label, err) {
+    let toast = document.getElementById('cascara-runtime-error');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'cascara-runtime-error';
+      toast.style.cssText = 'position:fixed;bottom:18px;right:18px;max-width:420px;background:#7B1D1D;color:#fff;padding:14px 18px;border-radius:10px;box-shadow:0 12px 30px rgba(0,0,0,0.25);font-family:Helvetica Neue,Helvetica,sans-serif;font-size:13px;z-index:99999;cursor:pointer;';
+      toast.onclick = () => toast.remove();
+      document.body.appendChild(toast);
+    }
+    toast.innerHTML = `<strong style="display:block;margin-bottom:4px;letter-spacing:0.06em;text-transform:uppercase;font-size:11px;">Error: ${label}</strong>${String(err?.message || err).slice(0, 200)}<div style="margin-top:8px;font-size:10.5px;opacity:0.7;">Click para cerrar · revisá la consola para el stack</div>`;
   },
 
   // ---------- HEADER (single source of truth from Cascara.state) ----------
