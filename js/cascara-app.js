@@ -1226,8 +1226,24 @@ const CascaraForm = {
     list.querySelectorAll('.f-resp-item').forEach(el => el.remove());
     let addBtn = list.querySelector('.f-resp-add');
 
+    // Diagnóstico visible (temporal): saber por qué no rinden los Proyectos
+    const planExists = !!Cascara.state.plan;
+    const planId = Cascara.state.plan?.id?.slice(0, 8) || 'null';
+    let dbg = fs3.querySelector('.cascara-debug-pill');
+    if (!dbg) {
+      dbg = document.createElement('div');
+      dbg.className = 'cascara-debug-pill';
+      dbg.style.cssText = 'margin:8px 0;padding:6px 10px;background:rgba(195,154,0,0.1);border:1px dashed rgba(195,154,0,0.4);border-radius:6px;font-size:11px;color:#7A6000;font-family:monospace;';
+      fs3.querySelector('.f-section-head')?.insertAdjacentElement('afterend', dbg);
+    }
     // Solo cargamos proyectos si ya existe un plan en DB (no creamos nada por default)
-    const projects = Cascara.state.plan ? await Cascara.listProjects() : [];
+    let projects = [];
+    let listErr = null;
+    if (Cascara.state.plan) {
+      try { projects = await Cascara.listProjects(); }
+      catch (e) { listErr = e?.message || String(e); }
+    }
+    dbg.textContent = `debug · plan:${planExists ? planId : 'no'} · proyectos en DB:${projects.length}${listErr ? ' · ERROR: '+listErr : ''}`;
 
     projects.forEach((p, idx) => {
       const el = this.buildProjectElement(p, idx);
