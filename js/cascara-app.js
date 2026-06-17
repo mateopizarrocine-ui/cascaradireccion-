@@ -24,6 +24,17 @@ const Cascara = {
 
   // ---------- INIT ----------
   async init() {
+    // BUILD INDICATOR — pill flotante para que el usuario vea qué versión está corriendo
+    const BUILD = '2026-06-13-1';
+    try {
+      const stamp = document.createElement('div');
+      stamp.id = 'cascara-build-stamp';
+      stamp.textContent = 'build · ' + BUILD;
+      stamp.style.cssText = 'position:fixed;bottom:8px;left:8px;background:rgba(16,6,159,0.85);color:#fff;padding:4px 10px;border-radius:999px;font-family:monospace;font-size:10px;letter-spacing:0.04em;z-index:99999;pointer-events:none;opacity:0.6;';
+      document.body.appendChild(stamp);
+    } catch (_) {}
+    console.log('[Cáscara] init() — build', BUILD);
+
     // Bloquear la UI hasta que estemos listos
     document.body.classList.add('cascara-not-ready');
     // Si hay sesión en cache, marcamos restoring para ocultar el login (evita flash)

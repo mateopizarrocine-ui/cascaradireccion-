@@ -11436,9 +11436,13 @@ show(0);
 
 <!-- ============================================================
      CÁSCARA · Capa de persistencia (Supabase)
+     CACHE-BUST: el ?v= se actualiza cada vez que cambia cascara-app.js
+     para que ningún navegador sirva una versión vieja.
      ============================================================ -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="js/cascara-app.js"></script>
+<script src="js/cascara-app.js?v=2026-06-13-1"></script>
+<!-- BUILD STAMP visible en consola para verificar versión -->
+<script>console.log('[Cáscara] Build: 2026-06-13-1');</script>
 
 </body>
 </html>
