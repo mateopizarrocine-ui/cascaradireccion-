@@ -25,7 +25,7 @@ const Cascara = {
   // ---------- INIT ----------
   async init() {
     // BUILD INDICATOR — pill flotante para que el usuario vea qué versión está corriendo
-    const BUILD = '2026-06-13-1';
+    const BUILD = '2026-06-13-2';
     try {
       const stamp = document.createElement('div');
       stamp.id = 'cascara-build-stamp';
@@ -3441,6 +3441,57 @@ const CascaraAudit = {
           <div class="au-status-controls" id="au-status-controls"></div>
         </div>
 
+        <!-- Strategy Council puede crear Proyectos nuevos on-the-fly -->
+        <div class="au-add-row">
+          <button class="au-add-btn" id="au-add-project-btn">+ Nuevo Proyecto</button>
+          <span class="au-add-hint">Sumá Proyectos que aparecieron durante la sesión y asignalos al área correspondiente.</span>
+        </div>
+
+        <!-- Modal de nuevo proyecto -->
+        <div class="au-modal-backdrop" id="au-modal-backdrop" style="display:none;">
+          <div class="au-modal">
+            <div class="au-modal-head">
+              <div class="au-modal-eyebrow">Audit Session · Nuevo Proyecto</div>
+              <h3 class="au-modal-title">Sumar Proyecto al Master Timeline</h3>
+              <button class="au-modal-close" id="au-modal-close" type="button" aria-label="Cerrar">×</button>
+            </div>
+            <div class="au-modal-body">
+              <div class="au-field">
+                <label class="au-field-label">Nombre del Proyecto</label>
+                <input type="text" class="au-field-input" id="au-new-name" placeholder="Ej: Setup de tracking de waitlist" />
+              </div>
+              <div class="au-field">
+                <label class="au-field-label">Área responsable</label>
+                <select class="au-field-input" id="au-new-area">
+                  <option value="">Elegí un área…</option>
+                </select>
+                <div class="au-field-help">El Proyecto se va a guardar en el plan de esta área. Si todavía no tiene plan en este Q, lo creamos.</div>
+              </div>
+              <div class="au-field">
+                <label class="au-field-label">Responsable <span style="font-weight:400;color:#A8A8AC;">(opcional)</span></label>
+                <input type="text" class="au-field-input" id="au-new-responsible" placeholder="Nombre del responsable" />
+              </div>
+              <div class="au-field">
+                <label class="au-field-label">Asignar a quincena <span style="font-weight:400;color:#A8A8AC;">(opcional)</span></label>
+                <select class="au-field-input" id="au-new-fortnight">
+                  <option value="0">Sin asignar (al pool)</option>
+                  <option value="1">Quincena 01 · Apertura</option>
+                  <option value="2">Quincena 02 · Producción 01</option>
+                  <option value="3">Quincena 03 · Punto medio</option>
+                  <option value="4">Quincena 04 · Producción 02</option>
+                  <option value="5">Quincena 05 · Push final</option>
+                  <option value="6">Quincena 06 · Cierre</option>
+                </select>
+              </div>
+              <div id="au-modal-error" class="au-modal-error" style="display:none;"></div>
+            </div>
+            <div class="au-modal-foot">
+              <button class="au-modal-btn ghost" type="button" id="au-modal-cancel">Cancelar</button>
+              <button class="au-modal-btn primary" type="button" id="au-modal-save">Crear Proyecto</button>
+            </div>
+          </div>
+        </div>
+
         <div class="au-board">
           <div class="au-pool-col">
             <div class="au-col-head">
@@ -3579,6 +3630,96 @@ const CascaraAudit = {
         font-size: 10px; font-weight: 700;
         display: inline-block; margin-left: 6px;
       }
+
+      /* Nuevo Proyecto · botón + hint */
+      .au-add-row {
+        display: flex; align-items: center; gap: 14px;
+        margin: 0 0 24px;
+        padding: 14px 18px;
+        background: rgba(195,154,0,0.07);
+        border: 1px dashed rgba(195,154,0,0.4);
+        border-radius: 14px;
+      }
+      .au-add-btn {
+        background: #C39A00; color: #fff; border: 0;
+        padding: 10px 18px; border-radius: 999px;
+        font-size: 12.5px; font-weight: 700; cursor: pointer;
+        font-family: inherit; letter-spacing: 0.02em;
+      }
+      .au-add-btn:hover { filter: brightness(1.08); }
+      .au-add-btn:disabled { background: #B5B3AF; cursor: not-allowed; }
+      .au-add-hint { font-size: 12.5px; color: #7A6000; line-height: 1.45; }
+      #view-audit-session.is-locked .au-add-row { display: none; }
+
+      /* Modal Nuevo Proyecto */
+      .au-modal-backdrop {
+        position: fixed; inset: 0;
+        background: rgba(10,10,12,0.55);
+        z-index: 9998;
+        display: flex; align-items: center; justify-content: center;
+        padding: 24px;
+      }
+      .au-modal {
+        background: #fff; border-radius: 18px;
+        max-width: 560px; width: 100%;
+        box-shadow: 0 30px 80px rgba(0,0,0,0.3);
+        font-family: var(--font-sans);
+        overflow: hidden;
+      }
+      .au-modal-head {
+        padding: 24px 28px 18px;
+        position: relative;
+        border-bottom: 1px solid rgba(0,0,0,0.06);
+      }
+      .au-modal-eyebrow {
+        font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em;
+        text-transform: uppercase; color: #7A6000; margin-bottom: 6px;
+      }
+      .au-modal-title {
+        font-size: 24px; font-weight: 800; margin: 0;
+        color: #0A0A0C; letter-spacing: -0.018em;
+      }
+      .au-modal-close {
+        position: absolute; top: 18px; right: 18px;
+        background: none; border: 0; font-size: 26px;
+        color: #52525A; cursor: pointer; line-height: 1;
+      }
+      .au-modal-close:hover { color: #0A0A0C; }
+      .au-modal-body { padding: 22px 28px; display: flex; flex-direction: column; gap: 16px; }
+      .au-field { display: flex; flex-direction: column; gap: 6px; }
+      .au-field-label {
+        font-size: 10.5px; font-weight: 700; letter-spacing: 0.12em;
+        text-transform: uppercase; color: #52525A;
+      }
+      .au-field-input {
+        padding: 11px 14px; border: 1px solid rgba(0,0,0,0.12);
+        border-radius: 8px; font-family: inherit; font-size: 14px;
+        background: #fff; color: var(--ink);
+      }
+      .au-field-input:focus { outline: none; border-color: #10069F; }
+      .au-field-help { font-size: 12px; color: #52525A; line-height: 1.45; }
+      .au-modal-error {
+        background: rgba(197,48,48,0.08);
+        border: 1px solid rgba(197,48,48,0.3);
+        color: #7B1D1D; padding: 10px 14px; border-radius: 8px;
+        font-size: 12.5px;
+      }
+      .au-modal-foot {
+        padding: 16px 28px 24px;
+        display: flex; gap: 10px; justify-content: flex-end;
+        border-top: 1px solid rgba(0,0,0,0.05);
+      }
+      .au-modal-btn {
+        padding: 10px 20px; border-radius: 999px;
+        font-family: inherit; font-size: 13px; font-weight: 700;
+        cursor: pointer; border: 0;
+        letter-spacing: 0.02em;
+      }
+      .au-modal-btn.primary { background: #10069F; color: #fff; }
+      .au-modal-btn.primary:hover { background: #0a047a; }
+      .au-modal-btn.primary:disabled { background: #B5B3AF; cursor: not-allowed; }
+      .au-modal-btn.ghost { background: transparent; color: #52525A; border: 1px solid rgba(0,0,0,0.15); }
+      .au-modal-btn.ghost:hover { background: rgba(0,0,0,0.04); }
     `;
     document.head.appendChild(s);
   },
@@ -3599,6 +3740,93 @@ const CascaraAudit = {
 
     this.ensureView();
     await this.render();
+    await this.wireAddProjectModal();
+  },
+
+  // ---------- NUEVO PROYECTO (modal con área dropdown) ----------
+  async wireAddProjectModal() {
+    if (this._modalWired) return;
+    this._modalWired = true;
+
+    const openBtn = document.getElementById('au-add-project-btn');
+    const backdrop = document.getElementById('au-modal-backdrop');
+    const closeBtn = document.getElementById('au-modal-close');
+    const cancelBtn = document.getElementById('au-modal-cancel');
+    const saveBtn = document.getElementById('au-modal-save');
+    const nameInp = document.getElementById('au-new-name');
+    const areaSel = document.getElementById('au-new-area');
+    const respInp = document.getElementById('au-new-responsible');
+    const fnSel = document.getElementById('au-new-fortnight');
+    const errEl = document.getElementById('au-modal-error');
+
+    // Cargar áreas en el dropdown una vez
+    const { data: areas } = await Cascara.client.from('areas').select('*').order('order_index');
+    areaSel.innerHTML = '<option value="">Elegí un área…</option>' +
+      (areas || []).map(a => `<option value="${a.id}">${this.escape(a.name)}</option>`).join('');
+
+    const open = () => {
+      nameInp.value = '';
+      areaSel.value = '';
+      respInp.value = '';
+      fnSel.value = '0';
+      errEl.style.display = 'none';
+      errEl.textContent = '';
+      backdrop.style.display = 'flex';
+      setTimeout(() => nameInp.focus(), 50);
+    };
+    const close = () => { backdrop.style.display = 'none'; };
+
+    openBtn.onclick = open;
+    closeBtn.onclick = close;
+    cancelBtn.onclick = close;
+    backdrop.onclick = (e) => { if (e.target === backdrop) close(); };
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && backdrop.style.display === 'flex') close();
+    });
+
+    saveBtn.onclick = async () => {
+      const name = nameInp.value.trim();
+      const areaId = areaSel.value;
+      const responsible = respInp.value.trim();
+      const fortnight = parseInt(fnSel.value, 10) || 0;
+
+      if (!name) { errEl.textContent = 'El nombre del Proyecto es obligatorio.'; errEl.style.display = 'block'; nameInp.focus(); return; }
+      if (!areaId) { errEl.textContent = 'Tenés que elegir un área responsable.'; errEl.style.display = 'block'; areaSel.focus(); return; }
+      if (!Cascara.state.quarter) { errEl.textContent = 'No hay Q activo cargado.'; errEl.style.display = 'block'; return; }
+
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Creando…';
+      try {
+        // 1. Obtener o crear el plan del área para el Q actual
+        const plan = await Cascara.getOrCreatePlan(areaId, Cascara.state.quarter.id);
+        if (!plan?.id) throw new Error('No se pudo crear/encontrar el plan del área.');
+
+        // 2. Crear el proyecto
+        const project = await Cascara.createProject(plan.id);
+        if (!project?.id) throw new Error('No se pudo crear el Proyecto.');
+
+        // 3. Setear name + responsable
+        await Cascara.client.from('projects').update({
+          name,
+          responsible_name: responsible || null,
+        }).eq('id', project.id);
+
+        // 4. Si se pidió quincena, asignar en el timeline
+        if (fortnight >= 1 && fortnight <= 6) {
+          await Cascara.upsertTimelineEntry(project.id, fortnight, fortnight, 0);
+        }
+
+        close();
+        await this.render();
+      } catch (err) {
+        console.error('[CascaraAudit] add project failed:', err);
+        errEl.textContent = 'Error: ' + (err?.message || String(err));
+        errEl.style.display = 'block';
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Crear Proyecto';
+      }
+    };
   },
 
   async render() {
