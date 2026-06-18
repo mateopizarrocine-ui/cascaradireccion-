@@ -24,14 +24,27 @@ const Cascara = {
 
   // ---------- INIT ----------
   async init() {
-    // BUILD INDICATOR — pill flotante para que el usuario vea qué versión está corriendo
+    // BUILD INDICATOR — pill flotante con la versión + acción para forzar recarga
     const BUILD = '2026-06-13-3';
     try {
       const stamp = document.createElement('div');
       stamp.id = 'cascara-build-stamp';
-      stamp.textContent = 'build · ' + BUILD;
-      stamp.style.cssText = 'position:fixed;bottom:8px;left:8px;background:rgba(16,6,159,0.85);color:#fff;padding:4px 10px;border-radius:999px;font-family:monospace;font-size:10px;letter-spacing:0.04em;z-index:99999;pointer-events:none;opacity:0.6;';
+      stamp.innerHTML = '<span style="opacity:0.7;">build · ' + BUILD + '</span> <span id="cascara-reload-btn" title="Forzar recarga limpiando cache" style="cursor:pointer;text-decoration:underline;opacity:0.95;margin-left:8px;">↻ recargar</span>';
+      stamp.style.cssText = 'position:fixed;bottom:8px;left:8px;background:rgba(16,6,159,0.85);color:#fff;padding:4px 12px;border-radius:999px;font-family:monospace;font-size:10px;letter-spacing:0.04em;z-index:99999;opacity:0.85;';
       document.body.appendChild(stamp);
+      // Hook del botón
+      const reload = document.getElementById('cascara-reload-btn');
+      if (reload) reload.onclick = () => {
+        // Limpiar todo lo que pueda dejar la UI en estado raro
+        try {
+          // NO borramos cascara_user_id porque es la sesión válida.
+          // Solo limpiamos flags que pueden trabar la UI.
+          localStorage.removeItem('cascara_view');
+        } catch (_) {}
+        // Forzar reload sin cache pegándole timestamp al URL
+        const sep = location.search ? '&' : '?';
+        location.replace(location.pathname + location.search + sep + 'cb=' + Date.now());
+      };
     } catch (_) {}
     console.log('[Cáscara] init() — build', BUILD);
 

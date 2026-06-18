@@ -3,6 +3,10 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!-- CACHE BUSTING: el HTML nunca se cachea → siempre lee el ?v= actualizado del JS -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
 <title>Cáscara · Sistema de Planificación</title>
 <style>
 /* ============================================================
@@ -11440,9 +11444,19 @@ show(0);
      para que ningún navegador sirva una versión vieja.
      ============================================================ -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="js/cascara-app.js?v=2026-06-13-3"></script>
-<!-- BUILD STAMP visible en consola para verificar versión -->
-<script>console.log('[Cáscara] Build: 2026-06-13-3');</script>
+<!--
+  Cache-bust automático: append timestamp del fetch al URL del JS para que el navegador
+  nunca sirva una versión vieja. Como el HTML no se cachea (meta no-cache arriba),
+  cada visita genera una URL nueva y baja el JS fresco si cambió.
+-->
+<script>
+(function(){
+  var s = document.createElement('script');
+  s.src = 'js/cascara-app.js?v=2026-06-13-3&t=' + Date.now();
+  document.body.appendChild(s);
+  console.log('[Cáscara] Build: 2026-06-13-3 · loader t=' + Date.now());
+})();
+</script>
 
 </body>
 </html>
