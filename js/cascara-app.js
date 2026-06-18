@@ -25,7 +25,7 @@ const Cascara = {
   // ---------- INIT ----------
   async init() {
     // BUILD INDICATOR — pill flotante con la versión + acción para forzar recarga
-    const BUILD = '2026-06-18-2';
+    const BUILD = '2026-06-19-1';
     try {
       const stamp = document.createElement('div');
       stamp.id = 'cascara-build-stamp';
@@ -3556,6 +3556,89 @@ const CascaraAudit = {
 
           <div class="au-fortnights-grid" id="au-fortnights-grid"></div>
         </div>
+
+        <!-- DOCUMENTO: lógica del Master Timeline (debajo de la grilla, visible a todos) -->
+        <section class="au-rationale">
+          <header class="au-rat-head">
+            <div class="au-rat-eyebrow">Lectura para todo el equipo</div>
+            <h2 class="au-rat-title">La lógica <em>del Master Timeline.</em></h2>
+            <p class="au-rat-sub">Por qué cada Proyecto cayó en la quincena donde quedó. Cuando mires el timeline, tené esto como brújula para encastrar tu plan con la lógica del Q completo.</p>
+          </header>
+
+          <article class="au-rat-body">
+
+            <div class="au-rat-section">
+              <h3>1 · La tesis narrativa del Q</h3>
+              <p>El Q tiene tres tiempos. <strong>Junio</strong> es ejecución del lanzamiento actual (Workshop) y siembra de los próximos. <strong>Julio</strong> es Bootcamp 2.0 + Low Ticket en vivo — es el mes-pivote del trimestre. <strong>Agosto</strong> es el cierre del producto B2C con un relanzamiento renovado: otra narrativa, otro brief, otro ángulo dentro de "romper la cáscara".</p>
+              <p>La narrativa que dirige todo es: <strong>el cierre del Q es también el rebrand del programa principal</strong>. Cada Proyecto del trimestre o alimenta esa narrativa o la prepara.</p>
+            </div>
+
+            <div class="au-rat-section">
+              <h3>2 · Growth &amp; Marketing — Por qué los lanzamientos caen donde caen</h3>
+              <p><strong>Bootcamp 2.0 (Julio · Q03).</strong> La cadencia "un Bootcamp cada dos meses" sostiene el ritmo narrativo del año. El Workshop actual termina, una semana de descanso, y arranca el hype del próximo lanzamiento. Sin ese boost de facturación a mitad del Q no llegamos cómodos al cierre.</p>
+              <p><strong>Low Ticket (principio de julio · Q01-Q02).</strong> Tiene que entrar lo antes posible. La estructura está, solo falta terminar de ordenar el contenido. Aunque sea una primera versión, sale.</p>
+              <p><strong>Cierre del producto B2C (Agosto · Q04).</strong> Es el corazón del trimestre. El Q04 está reservado para el relanzamiento con otra cara, otro ángulo, basado en los aprendizajes de los dos Bootcamps que pasaron antes. La idea es alinearlo con el aniversario de Cáscara como narrativa de activación.</p>
+              <p><strong>Lanzamiento B2B de Estrategas Creativos (Q03-Q04).</strong> Va en el medio. La lógica: el Bootcamp 2.0 alimenta el pool de estrategas + el lanzamiento B2B les da trabajo concreto. Es una rueda que se cierra — el programa forma, las marcas contratan. Apuntamos a vender entre 5 y 8 tickets de "te insertamos un estratega" como prueba de mercado.</p>
+              <p>El <strong>target del B2B no es el mismo que el de Cáscara</strong>. Cáscara es para freelancers, filmmakers, diseñadores. El servicio B2B apunta a founders, dueños de agencia y marcas personales con conciencia de marca más alta. El branding del "nivel 2" del programa hay que repensarlo desde ahí — probablemente como "especialización".</p>
+            </div>
+
+            <div class="au-rat-section">
+              <h3>3 · Contenido — Por qué cada Proyecto en su quincena</h3>
+              <p><strong>Marcas personales de founders (arrancar ya · Q01).</strong> Es lo que no logramos sostener los últimos meses. Autoridad y leads del ecosistema vienen de acá. Cada estratega creativo se asigna a un founder, cuota fija de publicación, y se mide cumplimiento.</p>
+              <p><strong>SOP del servicio de estrategia creativa (objetivo Q03, deadline real Q06).</strong> El SOP se va a documentar mientras se ejecuta el Bootcamp 2.0. Esto es deliberado: que el proceso de armar la campaña sea también el insumo que documente el rol. La expectativa formal es Q03, pero el manual completo se cierra en Q06 con todos los aprendizajes del ciclo.</p>
+              <p><strong>Capacitación interna del equipo creativo (punto medio · Q03).</strong> Va junto con Creatividad porque toca estilo + brief + roles. No es 100% Contenido — es la frontera con Creatividad. Primero hay que dominar el estilo Cáscara antes de bajarlo al resto del equipo.</p>
+              <p><strong>Capacitación del nuevo pool de estrategas (cierre · Q06).</strong> Va al final porque depende del SOP cerrado. Sin el manual del rol no se puede capacitar a los siguientes.</p>
+              <p><strong>Biblioteca / Laboratorio de Contenido (punto medio · Q03).</strong> El sistema de medir formatos, hooks, performance. Operativamente recae en Operaciones (infraestructura de datos) y en la coordinación con el equipo de estrategia. Se trabaja después de tener el servicio en tope gama.</p>
+              <p><strong>Producción Audiovisual (cierre · Q06).</strong> Se ata al cierre del producto B2C. Ahí el departamento audiovisual hace el "glow up" de la comunicación con el rebrand del programa.</p>
+              <p><strong>Calendario por lanzamientos y Research/Reportes.</strong> Descartados. El primero ya está cubierto por la estrategia del Q (junio = lanzamiento). El segundo es output del Laboratorio de Contenido, no proyecto aparte.</p>
+            </div>
+
+            <div class="au-rat-section">
+              <h3>4 · Creatividad — Por qué cada Proyecto en su quincena</h3>
+              <p><strong>Sistema y dirección del departamento creativo (apertura · Q01).</strong> Tiene que estar resuelto en esta apertura: roles, dinámica de líderes, flujo de trabajo. Es el cimiento sobre el que se monta todo el resto.</p>
+              <p><strong>Cáscara Más / Low Ticket (Q02).</strong> Sigue el ritmo del lanzamiento que ya está en marcha. Lo que aparece en Creatividad es la pata creativa del producto, alineada al cronograma de Growth.</p>
+              <p><strong>Objetos de Deseo (Q03 y Q06 · dos iteraciones).</strong> Primero un objeto, después otro. Cada uno con un KPI claro: cuánta conversación de la comunidad alimenta, qué tracción genera. Si funciona se escala, si no se aprende y se itera para la próxima planificación. <strong>No salimos a comunicar 17 productos distintos</strong> — vamos de a uno, lo probamos, lo medimos.</p>
+              <p><strong>Sprints Creativos / Campañas de 40 días (Q03).</strong> Reemplaza la idea de campaña larga por un sistema de Sprints cortos. El primer Sprint conecta con el Bootcamp 2.0. El Día del Amigo (20 de julio) se usa como activación del lanzamiento — coincide narrativamente.</p>
+              <p><strong>Producción Audiovisual de Cáscara (cierre · Q06).</strong> El objetivo del Q es tener el sistema mínimo definido: roles, formatos a grabar, frecuencia tentativa, equipo necesario, y al menos un piloto producido. Es la base del departamento audiovisual, no la productora completa.</p>
+              <p><strong>Diseño Gráfico del departamento (cierre · Q06).</strong> La meta es tener un departamento con líder, entrada de pedidos, procesos. Que cualquiera pueda pedir 10 piezas y se resuelvan sin tener que buscar el diseñador correcto cada vez.</p>
+            </div>
+
+            <div class="au-rat-section">
+              <h3>5 · Operaciones y Fulfillment — Por qué cada Proyecto en su quincena</h3>
+              <p><strong>Estructura de entrega de servicio Cáscara B3 (urgente · Q01).</strong> Ya en ejecución. Es el paso operativo que hace que el Workshop salga bien.</p>
+              <p><strong>Estructura y procesos operativos de La Mesa (Q03).</strong> Después del Low Ticket. La Mesa necesita su propio sistema operativo, distinto al de Cáscara B3.</p>
+              <p><strong>Cáscara App B2B / B2C (Q04).</strong> Coincide con el cierre del producto B2C. La idea: <strong>una sola app que sirve a las dos verticales</strong>. El cliente arranca como B2C y, si sigue el camino del programa, eventualmente se vuelve B2B (construye su agencia, contrata estrategas, necesita producir contenido). La app refleja esa escalera. En el Bootcamp 2.0 se anuncian las novedades de la nueva versión.</p>
+              <p><strong>ConnectWall (Q05).</strong> La plataforma que conecta talentos con oportunidades. Va al final porque la pileta llena de creativos necesita estructura para no caerse. Lo lidera Azu como inversión de recursos humanos: él arma la rampa, Cáscara se vuelve una generadora de oportunidades visible.</p>
+              <p><strong>Cáscara Workspace (cierre · Q06).</strong> El espacio donde trabajan todas las áreas. Se construye en paralelo a todo el Q porque va a recibir feedback continuo del sistema de planificación que estamos puliendo ahora. Es plastilina — se va modificando con cada Q.</p>
+            </div>
+
+            <div class="au-rat-section">
+              <h3>6 · Admin &amp; Finanzas — Por qué cada Proyecto en su quincena</h3>
+              <p><strong>Sistema económico / Nuevo sistema de puntos (apertura · Q01).</strong> Principio de mes. Hay que cerrar el ajuste con la nueva info de las ofertas antes de que arranque la siguiente capa.</p>
+              <p><strong>Airtable Unificado (Q04).</strong> Toda la data comercial centralizada en un Airtable + procesos para usarlo como base de datos. Es el paso previo al Cáscara Workspace — sin esto, el Workspace no puede leer info real.</p>
+              <p><strong>Rearmado de Contabilidad y Cuentas (cierre · Q06).</strong> Cuando ya tenemos el Airtable unificado y el Workspace en pie, recién ahí se rearman las cuentas con la info nueva.</p>
+            </div>
+
+            <div class="au-rat-section">
+              <h3>7 · La lógica del cierre (Q05-Q06)</h3>
+              <p>El Q05 puede parecer un agujero. <strong>No lo es.</strong> Tres razones:</p>
+              <ul>
+                <li>Muchos proyectos del Q04 se extienden naturalmente al Q05. El cierre del producto B2C, la app, la producción audiovisual — todos cruzan los dos.</li>
+                <li>Los proyectos del Q06 son <strong>objetivos trimestrales</strong>, no quincenales. Cierran al final del Q porque resumen el trabajo de todo el trimestre.</li>
+                <li>El Q05-Q06 es también el momento de <strong>planificar el próximo Q</strong>. Tiene que dejar margen para que el equipo se siente a armar lo que viene.</li>
+              </ul>
+            </div>
+
+            <div class="au-rat-section au-rat-cierre">
+              <h3>Cierre</h3>
+              <p>Este timeline <strong>no es definitivo</strong> — es la base para que cada Director ahora cargue las fechas de sus Hitos y KPIs en sus planes alineadas con la quincena que les tocó.</p>
+              <p>Si ves que algo te aprieta o que un Hito tuyo se pisa con otro Proyecto, traelo a la próxima sync. La idea es que el Master Timeline sea <em>brújula, no jaula.</em></p>
+              <p class="au-rat-firma">Strategy Council · Q01</p>
+            </div>
+
+          </article>
+        </section>
+
       </div>
     `;
     document.body.appendChild(v);
@@ -3720,6 +3803,74 @@ const CascaraAudit = {
       #view-audit-session.is-viewonly .au-viewonly-banner { display: flex; align-items: flex-start; gap: 12px; }
       .au-viewonly-banner strong { display: block; margin-bottom: 2px; }
       .au-viewonly-banner .ab-icon { font-size: 18px; flex-shrink: 0; line-height: 1; }
+
+      /* DOCUMENTO: lógica del Master Timeline */
+      .au-rationale {
+        margin: 56px auto 24px;
+        max-width: 920px;
+        padding: 0 20px;
+        font-family: 'Helvetica Neue LT Std', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      }
+      .au-rat-head { text-align: left; margin-bottom: 36px; padding-bottom: 22px; border-bottom: 1px solid rgba(16,6,159,0.18); }
+      .au-rat-eyebrow {
+        font-size: 11px; font-weight: 700; letter-spacing: 0.18em;
+        text-transform: uppercase; color: #C39A00; margin-bottom: 14px;
+      }
+      .au-rat-title {
+        font-size: clamp(34px, 4vw, 48px); font-weight: 800;
+        margin: 0 0 14px; letter-spacing: -0.025em; color: #0A0A0C;
+        line-height: 0.95;
+      }
+      .au-rat-title em {
+        font-family: 'Redaction10-Italic', 'Redaction', 'Times New Roman', Georgia, serif;
+        font-style: italic; font-weight: 400; color: #10069F;
+      }
+      .au-rat-sub {
+        font-size: 15px; line-height: 1.55; color: #52525A;
+        max-width: 680px; margin: 0;
+      }
+      .au-rat-body {
+        background: rgba(255,255,255,0.55);
+        border: 1px solid rgba(0,0,0,0.06);
+        border-radius: 18px;
+        padding: 40px 48px 36px;
+      }
+      .au-rat-section { margin-bottom: 32px; }
+      .au-rat-section:last-child { margin-bottom: 0; }
+      .au-rat-section h3 {
+        font-size: 18px; font-weight: 800; color: #10069F;
+        letter-spacing: -0.015em; margin: 0 0 14px;
+        padding-bottom: 8px; border-bottom: 1px dashed rgba(16,6,159,0.2);
+      }
+      .au-rat-section p {
+        font-size: 14.5px; line-height: 1.65; color: #1A1A1F;
+        margin: 0 0 12px;
+      }
+      .au-rat-section p:last-child { margin-bottom: 0; }
+      .au-rat-section strong { color: #0A0A0C; font-weight: 700; }
+      .au-rat-section em {
+        font-family: 'Redaction10-Italic', 'Redaction', 'Times New Roman', Georgia, serif;
+        font-style: italic; font-weight: 400; color: #10069F;
+      }
+      .au-rat-section ul {
+        margin: 8px 0 0; padding-left: 20px;
+        font-size: 14.5px; line-height: 1.65; color: #1A1A1F;
+      }
+      .au-rat-section ul li { margin-bottom: 6px; }
+      .au-rat-cierre {
+        margin-top: 36px; padding-top: 28px;
+        border-top: 1px solid rgba(0,0,0,0.08);
+      }
+      .au-rat-cierre h3 { color: #0A0A0C; border-bottom: 0; padding-bottom: 0; }
+      .au-rat-firma {
+        margin-top: 18px !important;
+        font-family: 'Redaction10-Italic', 'Redaction', 'Times New Roman', Georgia, serif;
+        font-style: italic; font-size: 13px; color: #52525A;
+        letter-spacing: 0.04em;
+      }
+      @media (max-width: 720px) {
+        .au-rat-body { padding: 24px 22px; }
+      }
 
       /* Modal Nuevo Proyecto */
       .au-modal-backdrop {
