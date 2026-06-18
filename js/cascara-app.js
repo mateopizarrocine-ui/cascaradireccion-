@@ -25,7 +25,7 @@ const Cascara = {
   // ---------- INIT ----------
   async init() {
     // BUILD INDICATOR — pill flotante con la versión + acción para forzar recarga
-    const BUILD = '2026-06-13-3';
+    const BUILD = '2026-06-18-1';
     try {
       const stamp = document.createElement('div');
       stamp.id = 'cascara-build-stamp';
@@ -3483,6 +3483,15 @@ const CascaraAudit = {
           <div class="au-status-controls" id="au-status-controls"></div>
         </div>
 
+        <!-- Banner que aparece solo en modo lectura -->
+        <div class="au-viewonly-banner">
+          <span class="ab-icon">✓</span>
+          <div>
+            <strong>Master Timeline cerrado por el Strategy Council</strong>
+            Esta es la versión final del orden de ejecución del Q. Vos no podés mover Proyectos desde acá — usá esta vista para alinear las fechas de Hitos y KPIs en tu plan según la quincena que le tocó a cada Proyecto.
+          </div>
+        </div>
+
         <!-- Strategy Council puede crear Proyectos nuevos on-the-fly -->
         <div class="au-add-row">
           <button class="au-add-btn" id="au-add-project-btn">+ Nuevo Proyecto</button>
@@ -3692,6 +3701,25 @@ const CascaraAudit = {
       .au-add-btn:disabled { background: #B5B3AF; cursor: not-allowed; }
       .au-add-hint { font-size: 12.5px; color: #7A6000; line-height: 1.45; }
       #view-audit-session.is-locked .au-add-row { display: none; }
+      /* Modo VIEW-ONLY (Directores y Members): no se mueve nada, no se crean Proyectos */
+      #view-audit-session.is-viewonly .au-add-row { display: none; }
+      #view-audit-session.is-viewonly .au-project-chip { cursor: default; }
+      #view-audit-session.is-viewonly .au-project-chip:hover { transform: none; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
+      /* Banner verde con explicación del modo lectura */
+      .au-viewonly-banner {
+        display: none;
+        margin: 0 0 22px;
+        padding: 14px 18px;
+        background: rgba(0,179,107,0.08);
+        border: 1px solid rgba(0,179,107,0.3);
+        border-radius: 14px;
+        color: #00733C;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      #view-audit-session.is-viewonly .au-viewonly-banner { display: flex; align-items: flex-start; gap: 12px; }
+      .au-viewonly-banner strong { display: block; margin-bottom: 2px; }
+      .au-viewonly-banner .ab-icon { font-size: 18px; flex-shrink: 0; line-height: 1; }
 
       /* Modal Nuevo Proyecto */
       .au-modal-backdrop {
@@ -3774,15 +3802,23 @@ const CascaraAudit = {
     }
     const isSC = await Cascara.isStrategyCouncil();
     const isAdmin = Cascara.isAdmin();
-    if (!isSC && !isAdmin) {
-      alert('Esta vista es solo para el Strategy Council (Teo, Facu, Franco).');
-      goTo('home');
-      return;
+    // El Strategy Council y los Admin pueden editar. Los demás (Directores, Members)
+    // entran en modo lectura SOLO si el Master Timeline ya está locked.
+    this.viewOnly = !isSC && !isAdmin;
+    if (this.viewOnly) {
+      const status = await Cascara.getAuditStatus();
+      if (status !== 'timeline_locked' && status !== 'execution' && status !== 'closed') {
+        alert('El Master Timeline todavía no está cerrado. El Strategy Council lo está armando — vas a verlo cuando lo locken.');
+        goTo('home');
+        return;
+      }
     }
 
     this.ensureView();
     await this.render();
-    await this.wireAddProjectModal();
+    if (!this.viewOnly) {
+      await this.wireAddProjectModal();
+    }
   },
 
   // ---------- NUEVO PROYECTO (modal con área dropdown) ----------
@@ -3877,7 +3913,22 @@ const CascaraAudit = {
 
     // Render status controls + locked class
     const view = document.getElementById('view-audit-session');
-    view.classList.toggle('is-locked', status === 'timeline_locked');
+    view.classList.toggle('is-locked', status === 'timeline_locked' || status === 'execution' || status === 'closed');
+    view.classList.toggle('is-viewonly', !!this.viewOnly);
+
+    // Cambiar el título y sub si es modo lectura
+    const titleEl = view.querySelector('.au-title');
+    const subEl = view.querySelector('.au-sub');
+    const eyebrowEl = view.querySelector('.au-eyebrow');
+    if (this.viewOnly) {
+      if (eyebrowEl) eyebrowEl.textContent = 'Master Timeline · Vista de lectura';
+      if (titleEl) titleEl.innerHTML = 'Master <em>Timeline.</em>';
+      if (subEl) subEl.textContent = 'Así quedó el orden de ejecución del Q. Mirá en qué quincena vive cada Proyecto para alinear tus fechas.';
+    } else {
+      if (eyebrowEl) eyebrowEl.textContent = 'Strategy Council · Audit Session';
+      if (titleEl) titleEl.innerHTML = 'Master <em>Timeline.</em>';
+      if (subEl) subEl.textContent = 'Arrastrá cada Proyecto a la quincena del Q donde arranca. Cuando esté ordenado, locká el timeline.';
+    }
 
     const statusControls = document.getElementById('au-status-controls');
     const statusLabel = {
@@ -3890,12 +3941,14 @@ const CascaraAudit = {
     const statusKey = status === 'audit_in_progress' ? 'in_progress' : (status === 'timeline_locked' || status === 'execution' || status === 'closed' ? 'locked' : 'planning');
 
     let actionBtn = '';
-    if (status === 'planning') {
-      actionBtn = '<button class="au-action-btn" onclick="CascaraAudit.startSession()">Abrir Audit Session</button>';
-    } else if (status === 'audit_in_progress') {
-      actionBtn = '<button class="au-action-btn lock" onclick="CascaraAudit.lockTimeline()">Lock Master Timeline</button>';
-    } else if (status === 'timeline_locked') {
-      actionBtn = '<button class="au-action-btn unlock" onclick="CascaraAudit.unlockTimeline()">Reabrir para ajustes</button>';
+    if (!this.viewOnly) {
+      if (status === 'planning') {
+        actionBtn = '<button class="au-action-btn" onclick="CascaraAudit.startSession()">Abrir Audit Session</button>';
+      } else if (status === 'audit_in_progress') {
+        actionBtn = '<button class="au-action-btn lock" onclick="CascaraAudit.lockTimeline()">Lock Master Timeline</button>';
+      } else if (status === 'timeline_locked') {
+        actionBtn = '<button class="au-action-btn unlock" onclick="CascaraAudit.unlockTimeline()">Reabrir para ajustes</button>';
+      }
     }
     statusControls.innerHTML = `
       <div class="au-status-badge ${statusKey}">${statusLabel}</div>
@@ -3942,8 +3995,8 @@ const CascaraAudit = {
     // Update pool count + empty messages
     this.updateCounts();
 
-    // Wire drop zones (allow drops if not locked)
-    if (status !== 'timeline_locked' && status !== 'execution' && status !== 'closed') {
+    // Wire drop zones — solo si NO es modo lectura Y el timeline no está locked
+    if (!this.viewOnly && status !== 'timeline_locked' && status !== 'execution' && status !== 'closed') {
       this.wireDragDrop();
     }
   },
@@ -5216,6 +5269,12 @@ async function injectNavLinks() {
       // Cachear isStrategyCouncil para no hacer await entre cleanups y adds
       const isSC = await Cascara.isStrategyCouncil();
       const isAdmin = Cascara.isAdmin();
+      // ¿El Master Timeline ya fue cerrado? — visible a todos en modo lectura
+      let timelineLocked = false;
+      try {
+        const auditStatus = await Cascara.getAuditStatus();
+        timelineLocked = ['timeline_locked', 'execution', 'closed'].includes(auditStatus);
+      } catch (_) { timelineLocked = false; }
 
       // Volver a limpiar después del await por si entre medio otra cosa metió botones
       document.querySelectorAll('.cascara-nav-link').forEach(el => el.remove());
@@ -5227,6 +5286,13 @@ async function injectNavLinks() {
         auditBtn.innerHTML = 'Audit Session <span class="arrow">→</span>';
         auditBtn.onclick = () => window.goTo('audit-session');
         container.insertBefore(auditBtn, container.firstChild);
+      } else if (timelineLocked) {
+        // Directores y Members: link "Master Timeline" en modo lectura, solo si está locked
+        const mtBtn = document.createElement('button');
+        mtBtn.className = 'tb-link cascara-nav-link';
+        mtBtn.innerHTML = 'Master Timeline <span class="arrow">→</span>';
+        mtBtn.onclick = () => window.goTo('audit-session');
+        container.insertBefore(mtBtn, container.firstChild);
       }
 
       if (isAdmin) {
