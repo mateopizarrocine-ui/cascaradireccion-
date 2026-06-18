@@ -25,7 +25,7 @@ const Cascara = {
   // ---------- INIT ----------
   async init() {
     // BUILD INDICATOR — pill flotante para que el usuario vea qué versión está corriendo
-    const BUILD = '2026-06-13-2';
+    const BUILD = '2026-06-13-3';
     try {
       const stamp = document.createElement('div');
       stamp.id = 'cascara-build-stamp';
@@ -35,38 +35,67 @@ const Cascara = {
     } catch (_) {}
     console.log('[Cáscara] init() — build', BUILD);
 
+    // CINTURÓN DE SEGURIDAD: pase lo que pase, después de 6 segundos el usuario
+    // debe poder interactuar. Nunca dejamos la app en gris para siempre.
+    setTimeout(() => {
+      if (document.body.classList.contains('cascara-restoring') || document.body.classList.contains('cascara-not-ready')) {
+        console.warn('[Cascara] safety timeout: forzando UI visible');
+        document.body.classList.remove('cascara-restoring');
+        document.body.classList.remove('cascara-not-ready');
+        // Si ninguna view quedó activa, abrimos el login como fallback
+        const anyActive = document.querySelector('.view.active, #view-login.active');
+        if (!anyActive) {
+          const login = document.getElementById('view-login');
+          if (login) login.classList.add('active');
+        }
+      }
+    }, 6000);
+
     // Bloquear la UI hasta que estemos listos
     document.body.classList.add('cascara-not-ready');
     // Si hay sesión en cache, marcamos restoring para ocultar el login (evita flash)
     const cachedUserId = localStorage.getItem('cascara_user_id');
     if (cachedUserId) document.body.classList.add('cascara-restoring');
     if (!window.supabase) {
-      console.error('[Cascara] Supabase SDK no cargó');
+      console.error('[Cascara] Supabase SDK no cargó — mostrando login como fallback');
+      document.body.classList.remove('cascara-restoring');
+      document.body.classList.remove('cascara-not-ready');
+      const login = document.getElementById('view-login');
+      if (login && !login.classList.contains('active')) login.classList.add('active');
       return;
     }
-    this.client = window.supabase.createClient(
-      CASCARA_CONFIG.SUPABASE_URL,
-      CASCARA_CONFIG.SUPABASE_ANON_KEY,
-      { db: { schema: 'planificacion' } }
-    );
+    // Todo el init real va en un try/catch — si algo falla, mostramos login sí o sí
+    try {
+      this.client = window.supabase.createClient(
+        CASCARA_CONFIG.SUPABASE_URL,
+        CASCARA_CONFIG.SUPABASE_ANON_KEY,
+        { db: { schema: 'planificacion' } }
+      );
 
-    // Quarter actual (estado planning o in_progress)
-    const { data: quarter, error: qErr } = await this.client
-      .from('quarters')
-      .select('*')
-      .in('status', ['planning', 'in_progress'])
-      .order('start_date', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (qErr) console.warn('[Cascara] quarter:', qErr);
-    this.state.quarter = quarter;
-    // Si el SC cambia el audit_status remoto, podemos suscribirnos vía realtime
-    // (Fase posterior). Por ahora, cada navegación re-lee el quarter.
+      // Quarter actual (estado planning o in_progress)
+      const { data: quarter, error: qErr } = await this.client
+        .from('quarters')
+        .select('*')
+        .in('status', ['planning', 'in_progress'])
+        .order('start_date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (qErr) console.warn('[Cascara] quarter:', qErr);
+      this.state.quarter = quarter;
 
-    // Restaurar sesión
-    const storedUserId = localStorage.getItem('cascara_user_id');
-    if (storedUserId) {
-      await this.loadUserById(storedUserId);
+      // Restaurar sesión
+      const storedUserId = localStorage.getItem('cascara_user_id');
+      if (storedUserId) {
+        await this.loadUserById(storedUserId);
+      }
+    } catch (err) {
+      console.error('[Cascara] init() falló — usando fallback:', err);
+      // No tiramos — limpiamos clases y mostramos login
+      document.body.classList.remove('cascara-restoring');
+      document.body.classList.remove('cascara-not-ready');
+      const login = document.getElementById('view-login');
+      if (login && !login.classList.contains('active')) login.classList.add('active');
+      return;
     }
 
     this.state.ready = true;
