@@ -25,7 +25,7 @@ const Cascara = {
   // ---------- INIT ----------
   async init() {
     // BUILD INDICATOR — pill flotante con la versión + acción para forzar recarga
-    const BUILD = '2026-06-18-1';
+    const BUILD = '2026-06-18-2';
     try {
       const stamp = document.createElement('div');
       stamp.id = 'cascara-build-stamp';
@@ -5058,8 +5058,12 @@ function bindLoginOverride() {
 
 /* ============================================================
  * BOOTSTRAP
+ * Importante: este script puede ser inyectado dinámicamente DESPUÉS de que
+ * DOMContentLoaded ya disparó. En ese caso, el listener nunca corre. Por eso
+ * chequeamos document.readyState y lanzamos el bootstrap directo si ya está listo.
  * ============================================================ */
-document.addEventListener('DOMContentLoaded', async () => {
+async function cascaraBootstrap() {
+  console.log('[Cáscara] bootstrap · readyState=', document.readyState);
   // PRIMERO: intentar bindear loginAs lo antes posible (sin esperar init)
   bindLoginOverride();
   // Reintentos por si loginAs todavía no se definió
@@ -5230,7 +5234,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (e.key === 'ArrowRight' || e.key === ' ') CascaraOfficialPreso.show(CascaraOfficialPreso.slideIdx + 1);
     if (e.key === 'ArrowLeft') CascaraOfficialPreso.show(CascaraOfficialPreso.slideIdx - 1);
   });
-});
+}
+
+// Lanzar el bootstrap: si el DOM ya cargó (script inyectado tarde), corre directo
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', cascaraBootstrap);
+} else {
+  // DOMContentLoaded ya disparó → ejecutar ya mismo
+  cascaraBootstrap();
+}
 
 // Helper: clickear la pill del usuario debe LIMPIAR la sesión cacheada y dejar
 // el login estático para elegir. Evita el bug de "loguearse" como el mismo user de antes.
