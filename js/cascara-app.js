@@ -25,7 +25,7 @@ const Cascara = {
   // ---------- INIT ----------
   async init() {
     // BUILD INDICATOR — pill flotante con la versión + acción para forzar recarga
-    const BUILD = '2026-06-19-1';
+    const BUILD = '2026-06-19-2';
     try {
       const stamp = document.createElement('div');
       stamp.id = 'cascara-build-stamp';
@@ -2633,6 +2633,78 @@ const CascaraCheckIns = {
       #view-check-ins .ci-title em { font-family: 'Redaction', 'Times New Roman', Georgia, serif; font-style: italic; color: #10069F; font-weight: 400; }
       #view-check-ins .ci-sub { font-size: 14px; color: #52525A; max-width: 680px; line-height: 1.5; }
 
+      /* Calendario fijo de check-ins del Q */
+      .ci-schedule-card {
+        background: rgba(255,255,255,0.55);
+        border: 1px solid rgba(0,0,0,0.06);
+        border-radius: 18px;
+        padding: 24px 28px;
+        margin-bottom: 18px;
+      }
+      .ci-sched-head {
+        display: flex; align-items: flex-start; justify-content: space-between;
+        gap: 24px; flex-wrap: wrap;
+        padding-bottom: 16px; margin-bottom: 18px;
+        border-bottom: 1px dashed rgba(16,6,159,0.18);
+      }
+      .ci-sched-eyebrow {
+        font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em;
+        text-transform: uppercase; color: #10069F; margin-bottom: 6px;
+      }
+      .ci-sched-title {
+        font-size: 22px; font-weight: 800; letter-spacing: -0.018em;
+        color: #0A0A0C; margin-bottom: 6px;
+      }
+      .ci-sched-sub { font-size: 12.5px; color: #52525A; max-width: 480px; line-height: 1.5; }
+      .ci-sched-next {
+        background: rgba(16,6,159,0.07);
+        border: 1px solid rgba(16,6,159,0.22);
+        border-radius: 12px;
+        padding: 12px 16px;
+        min-width: 220px;
+        display: flex; flex-direction: column; gap: 2px;
+      }
+      .ci-sched-next.done { background: rgba(0,179,107,0.08); border-color: rgba(0,179,107,0.3); color: #00733C; font-weight: 700; font-size: 13px; }
+      .ci-sched-next-lbl {
+        font-size: 10px; font-weight: 700; letter-spacing: 0.14em;
+        text-transform: uppercase; color: #52525A;
+      }
+      .ci-sched-next strong { font-size: 13.5px; color: #0A0A0C; }
+      .ci-sched-next-date { font-size: 12px; color: #52525A; }
+      .ci-sched-next-date em {
+        font-family: 'Redaction10-Italic', 'Redaction', Georgia, serif;
+        font-style: italic; color: #10069F; font-weight: 400;
+      }
+      .ci-sched-list { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+      @media (max-width: 720px) { .ci-sched-list { grid-template-columns: 1fr 1fr; } }
+      .ci-sched-item {
+        display: flex; align-items: center; gap: 10px;
+        padding: 10px 12px; border-radius: 10px;
+        background: rgba(0,0,0,0.03);
+        border: 1px solid rgba(0,0,0,0.05);
+      }
+      .ci-sched-item.done {
+        background: rgba(0,179,107,0.08); border-color: rgba(0,179,107,0.2);
+      }
+      .ci-sched-item.next {
+        background: rgba(16,6,159,0.07); border-color: rgba(16,6,159,0.3);
+        box-shadow: 0 2px 8px rgba(16,6,159,0.08);
+      }
+      .ci-sched-icon {
+        width: 22px; height: 22px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-weight: 700; font-size: 12px; flex-shrink: 0;
+        background: #fff; color: #A8A8AC;
+      }
+      .ci-sched-item.done .ci-sched-icon { background: #00B36B; color: #fff; }
+      .ci-sched-item.next .ci-sched-icon { background: #10069F; color: #fff; }
+      .ci-sched-label { font-size: 11.5px; font-weight: 700; color: #0A0A0C; line-height: 1.2; margin-bottom: 2px; }
+      .ci-sched-date {
+        font-size: 11px; color: #52525A;
+        font-family: 'Redaction10-Italic', 'Redaction', Georgia, serif;
+        font-style: italic;
+      }
+
       /* Botón principal para arrancar un check-in */
       .ci-start-card {
         background: rgba(255,255,255,0.6); border: 1px solid rgba(0,0,0,0.07);
@@ -2799,6 +2871,10 @@ const CascaraCheckIns = {
       return;
     }
 
+    // Calendario de check-ins (5 fechas derivadas del start_date del Q)
+    const schedule = this.buildScheduleCard(sessions);
+    if (schedule) container.appendChild(schedule);
+
     // Start card con resumen de última sesión
     container.appendChild(this.buildStartCard(projects, sessions));
 
@@ -2806,6 +2882,90 @@ const CascaraCheckIns = {
     if (sessions.length > 0) {
       container.appendChild(this.buildHistorySection(sessions));
     }
+  },
+
+  // Calendario fijo de 5 check-ins, derivados del start_date del Q.
+  // Cadencia: semana 3, 5, 7, 9, 11 del Q (cada 2 semanas, arrancando después
+  // de la quincena 01 "Apertura" donde se planifica).
+  buildScheduleCard(sessions) {
+    const q = Cascara.state.quarter;
+    if (!q || !q.start_date) return null;
+    const start = new Date(q.start_date + 'T00:00:00');
+    if (isNaN(start)) return null;
+
+    const fmt = (d) => d.toLocaleDateString('es-AR', { weekday: 'short', day: '2-digit', month: 'short' });
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Días desde start para cada check-in (5 total, cada 14 días desde el día 14)
+    const labels = [
+      'Check-in 01 · post Apertura',
+      'Check-in 02 · Punto medio',
+      'Check-in 03 · Producción 02',
+      'Check-in 04 · Push final',
+      'Check-in 05 · Cierre',
+    ];
+    const items = labels.map((label, i) => {
+      const date = new Date(start);
+      date.setDate(date.getDate() + 14 * (i + 1));
+      return { label, date };
+    });
+
+    const card = document.createElement('div');
+    card.className = 'ci-schedule-card';
+
+    // Detectar próximo: primer check-in cuya fecha está hoy o después + que no se haya hecho
+    const sessionCount = sessions.length;
+    const nextIdx = items.findIndex((it, i) => i >= sessionCount && it.date >= today);
+    const next = nextIdx >= 0 ? items[nextIdx] : null;
+
+    let nextHtml = '';
+    if (next) {
+      const diff = Math.ceil((next.date - today) / (1000 * 60 * 60 * 24));
+      const diffLbl = diff === 0 ? 'es hoy' : (diff > 0 ? `en ${diff} día${diff === 1 ? '' : 's'}` : `hace ${Math.abs(diff)} día${Math.abs(diff) === 1 ? '' : 's'}`);
+      nextHtml = `<div class="ci-sched-next">
+        <span class="ci-sched-next-lbl">Próximo</span>
+        <strong>${this.escape(next.label)}</strong>
+        <span class="ci-sched-next-date">${this.escape(fmt(next.date))} <em>· ${this.escape(diffLbl)}</em></span>
+      </div>`;
+    } else if (sessionCount >= items.length) {
+      nextHtml = `<div class="ci-sched-next done">✓ Todos los check-ins del Q completados</div>`;
+    } else {
+      nextHtml = `<div class="ci-sched-next">Sin próximo check-in en agenda</div>`;
+    }
+
+    const itemsHtml = items.map((it, i) => {
+      const isDone = i < sessionCount;
+      const isNext = next && it.date.getTime() === next.date.getTime();
+      const klass = isDone ? 'done' : (isNext ? 'next' : 'pending');
+      const icon = isDone ? '✓' : (isNext ? '→' : '·');
+      return `
+        <div class="ci-sched-item ${klass}">
+          <span class="ci-sched-icon">${icon}</span>
+          <div class="ci-sched-meta">
+            <div class="ci-sched-label">${this.escape(it.label)}</div>
+            <div class="ci-sched-date">${this.escape(fmt(it.date))}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    card.innerHTML = `
+      <div class="ci-sched-head">
+        <div>
+          <div class="ci-sched-eyebrow">Calendario del Q · derivado de la apertura</div>
+          <div class="ci-sched-title">Tus 5 check-ins</div>
+          <div class="ci-sched-sub">Cada 2 semanas a partir del cierre de la Apertura. Si la fecha de inicio del Q cambia, este calendario se mueve solo.</div>
+        </div>
+        ${nextHtml}
+      </div>
+      <div class="ci-sched-list">${itemsHtml}</div>
+    `;
+    return card;
+  },
+
+  escape(s) {
+    return (s == null ? '' : String(s)).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
   },
 
   buildStartCard(projects, sessions) {
