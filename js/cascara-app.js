@@ -25,7 +25,7 @@ const Cascara = {
   // ---------- INIT ----------
   async init() {
     // BUILD INDICATOR — pill flotante con la versión + acción para forzar recarga
-    const BUILD = '2026-06-19-2';
+    const BUILD = '2026-06-19-3';
     try {
       const stamp = document.createElement('div');
       stamp.id = 'cascara-build-stamp';
@@ -531,20 +531,21 @@ const Cascara = {
   },
 
   // ---------- CHECK-INS (por sesión, 1 sesión = todos los proyectos del área) ----------
-  async listProjectsOfMyArea() {
-    if (!this.state.area || !this.state.quarter) return [];
-    // Resolver mi plan
+  async listProjectsOfMyArea(areaIdOverride = null) {
+    const areaId = areaIdOverride || this.state.area?.id;
+    if (!areaId || !this.state.quarter) return [];
     const { data: plan } = await this.client.from('plans')
-      .select('id').eq('area_id', this.state.area.id).eq('quarter_id', this.state.quarter.id).maybeSingle();
+      .select('id').eq('area_id', areaId).eq('quarter_id', this.state.quarter.id).maybeSingle();
     if (!plan) return [];
     const { data: projects } = await this.client.from('projects')
       .select('id, name, responsible_name, order_index').eq('plan_id', plan.id).order('order_index');
     return projects || [];
   },
-  async listSessionsForMyPlan() {
-    if (!this.state.area || !this.state.quarter) return [];
+  async listSessionsForMyPlan(areaIdOverride = null) {
+    const areaId = areaIdOverride || this.state.area?.id;
+    if (!areaId || !this.state.quarter) return [];
     const { data: plan } = await this.client.from('plans')
-      .select('id').eq('area_id', this.state.area.id).eq('quarter_id', this.state.quarter.id).maybeSingle();
+      .select('id').eq('area_id', areaId).eq('quarter_id', this.state.quarter.id).maybeSingle();
     if (!plan) return [];
     const { data: sessions } = await this.client.from('check_in_sessions')
       .select('*, entries:check_ins(*, project:projects(name))').eq('plan_id', plan.id).order('created_at', { ascending: false });
@@ -2633,6 +2634,51 @@ const CascaraCheckIns = {
       #view-check-ins .ci-title em { font-family: 'Redaction', 'Times New Roman', Georgia, serif; font-style: italic; color: #10069F; font-weight: 400; }
       #view-check-ins .ci-sub { font-size: 14px; color: #52525A; max-width: 680px; line-height: 1.5; }
 
+      /* Selector de área para admin */
+      .ci-area-switcher {
+        display: flex; align-items: center; gap: 12px;
+        margin-bottom: 18px;
+        padding: 12px 16px;
+        background: rgba(16,6,159,0.05);
+        border: 1px dashed rgba(16,6,159,0.25);
+        border-radius: 10px;
+        flex-wrap: wrap;
+      }
+      .ci-as-label {
+        font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em;
+        text-transform: uppercase; color: #10069F;
+      }
+      .ci-as-select {
+        flex: 1; min-width: 220px;
+        padding: 8px 12px; border-radius: 8px;
+        border: 1px solid rgba(0,0,0,0.15);
+        background: #fff; font-family: inherit; font-size: 13.5px;
+        color: #0A0A0C; cursor: pointer;
+      }
+      .ci-as-select:focus { outline: none; border-color: #10069F; }
+      .ci-as-mine {
+        padding: 8px 14px; border: 1px solid rgba(16,6,159,0.3);
+        background: transparent; color: #10069F; border-radius: 8px;
+        font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+      }
+      .ci-as-mine:hover:not(:disabled) { background: rgba(16,6,159,0.06); }
+      .ci-as-mine:disabled { opacity: 0.35; cursor: not-allowed; }
+
+      /* Banner de auditoría cross-area */
+      .ci-audit-banner {
+        display: flex; align-items: flex-start; gap: 12px;
+        padding: 14px 18px;
+        background: rgba(195,154,0,0.09);
+        border: 1px solid rgba(195,154,0,0.32);
+        border-radius: 12px;
+        color: #7A6000;
+        font-size: 13px;
+        line-height: 1.5;
+        margin-bottom: 18px;
+      }
+      .ci-audit-banner strong { display: block; margin-bottom: 2px; color: #7A6000; }
+      .ci-ab-icon { font-size: 18px; line-height: 1; flex-shrink: 0; }
+
       /* Calendario fijo de check-ins del Q */
       .ci-schedule-card {
         background: rgba(255,255,255,0.55);
@@ -2841,6 +2887,9 @@ const CascaraCheckIns = {
     document.head.appendChild(s);
   },
 
+  // Área que se está auditando (para admin). Null = área propia del usuario.
+  auditingAreaId: null,
+
   async enter() {
     if (!Cascara.state.user) {
       alert('Tenés que estar logueado para entrar a check-ins.');
@@ -2854,17 +2903,44 @@ const CascaraCheckIns = {
       return;
     }
     this.ensureView();
-    const area = Cascara.state.area;
+
+    // Resolver área activa: admin puede auditar cualquier área, director solo la suya
+    const isAdmin = Cascara.isAdmin();
+    let activeArea = Cascara.state.area;
+    if (isAdmin && this.auditingAreaId) {
+      const { data: a } = await Cascara.client.from('areas').select('*').eq('id', this.auditingAreaId).maybeSingle();
+      if (a) activeArea = a;
+    }
+    const isForeign = isAdmin && activeArea && activeArea.id !== Cascara.state.user.area?.id;
+
     const nameEl = document.getElementById('ci-area-name');
-    if (nameEl && area) nameEl.textContent = area.name;
+    if (nameEl && activeArea) nameEl.textContent = activeArea.name;
+
+    // Selector de área para admin
+    await this.renderAreaSwitcher(activeArea);
 
     const container = document.getElementById('ci-content');
     container.innerHTML = 'Cargando…';
 
-    const projects = await Cascara.listProjectsOfMyArea();
-    const sessions = await Cascara.listSessionsForMyPlan();
+    const areaId = activeArea?.id;
+    const projects = await Cascara.listProjectsOfMyArea(areaId);
+    const sessions = await Cascara.listSessionsForMyPlan(areaId);
 
     container.innerHTML = '';
+
+    // Banner cuando admin audita área ajena
+    if (isForeign) {
+      const banner = document.createElement('div');
+      banner.className = 'ci-audit-banner';
+      banner.innerHTML = `
+        <span class="ci-ab-icon">👁</span>
+        <div>
+          <strong>Estás auditando el ritmo de ${this.escape(activeArea.name)}</strong>
+          Podés ver todo el historial de check-ins. La creación de nuevos check-ins queda bloqueada — solo el Director del área puede registrarlos.
+        </div>
+      `;
+      container.appendChild(banner);
+    }
 
     if (projects.length === 0) {
       container.appendChild(this.buildEmptyStateWithExample());
@@ -2875,13 +2951,67 @@ const CascaraCheckIns = {
     const schedule = this.buildScheduleCard(sessions);
     if (schedule) container.appendChild(schedule);
 
-    // Start card con resumen de última sesión
-    container.appendChild(this.buildStartCard(projects, sessions));
+    // Start card con resumen de última sesión (solo si es área propia)
+    if (!isForeign) {
+      container.appendChild(this.buildStartCard(projects, sessions));
+    } else {
+      // Muestra un card resumen sin botón de "hacer check-in"
+      const infoCard = document.createElement('div');
+      infoCard.className = 'ci-start-card';
+      const last = sessions[0];
+      const meta = last
+        ? `${projects.length} proyectos · último check-in por ${this.escape(last.author_name || '—')} el ${new Date(last.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })}`
+        : `${projects.length} proyectos · sin check-ins todavía`;
+      infoCard.innerHTML = `
+        <div class="ci-start-info">
+          <div class="ci-start-eyebrow">Área en auditoría</div>
+          <div class="ci-start-title">${this.escape(activeArea.name)}</div>
+          <div class="ci-start-meta">${meta}</div>
+        </div>
+      `;
+      container.appendChild(infoCard);
+    }
 
     // Historial
     if (sessions.length > 0) {
       container.appendChild(this.buildHistorySection(sessions));
     }
+  },
+
+  async renderAreaSwitcher(activeArea) {
+    if (!Cascara.isAdmin()) return;
+    let wrap = document.getElementById('ci-area-switcher');
+    if (!wrap) {
+      wrap = document.createElement('div');
+      wrap.id = 'ci-area-switcher';
+      wrap.className = 'ci-area-switcher';
+      // Insertarlo debajo del head-row, antes del content
+      const content = document.getElementById('ci-content');
+      if (content && content.parentNode) {
+        content.parentNode.insertBefore(wrap, content);
+      }
+    }
+    const { data: areas } = await Cascara.client.from('areas').select('*').order('order_index');
+    const opts = (areas || []).map(a => {
+      const sel = activeArea && a.id === activeArea.id ? 'selected' : '';
+      return `<option value="${a.id}" ${sel}>${this.escape(a.name)}</option>`;
+    }).join('');
+    const myAreaId = Cascara.state.user?.area?.id || '';
+    wrap.innerHTML = `
+      <label class="ci-as-label">Auditar área</label>
+      <select id="ci-as-select" class="ci-as-select">${opts}</select>
+      <button id="ci-as-my" class="ci-as-mine" ${activeArea && activeArea.id === myAreaId ? 'disabled' : ''}>Volver a mi área</button>
+    `;
+    const sel = document.getElementById('ci-as-select');
+    if (sel) sel.onchange = async () => {
+      this.auditingAreaId = sel.value;
+      await this.enter();
+    };
+    const mine = document.getElementById('ci-as-my');
+    if (mine) mine.onclick = async () => {
+      this.auditingAreaId = null;
+      await this.enter();
+    };
   },
 
   // Calendario fijo de 5 check-ins, derivados del start_date del Q.
