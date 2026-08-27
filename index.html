@@ -3481,6 +3481,9 @@ body.cascara-restoring #view-login.active {
           <button class="person-card" onclick="loginAs('francisca')">
             <div class="person-name">Francisca</div>
             </button>
+          <button class="person-card" onclick="loginAs('second')">
+            <div class="person-name">Second</div>
+            </button>
         </div>
       </div>
 
@@ -4905,6 +4908,7 @@ const PEOPLE_MAP = {
   juana:     { name: 'Juana',     full: 'Juana Tempesta',     initials: 'JT', role: 'Creatividad',        preso: 'creatividad', areaKey: 'creatividad', area: 'Creatividad',      msg: 'Vamos a tu plan de Creatividad.' },
   franco:    { name: 'Franco',    full: 'Franco Dato',        initials: 'FD', role: 'Growth & Marketing', preso: 'marketing',   areaKey: 'marketing',   area: 'Marketing',        msg: 'Vamos a tu plan de Growth & Marketing.' },
   francisca: { name: 'Francisca', full: 'Francisca',          initials: 'F',  role: 'Comercial',          preso: 'comercial',   areaKey: 'comercial',   area: 'Comercial',        msg: 'Vamos a tu plan de Comercial.' },
+  second:    { name: 'Second',    full: 'Second',             initials: 'S',  role: 'Estrategia Creativa', preso: null,          areaKey: 'estrategia-creativa', area: 'Estrategia Creativa', msg: 'Vamos a tu plan de Estrategia Creativa.' },
 };
 
 function applyUserToHome() {
@@ -11453,7 +11457,7 @@ show(0);
 <script>
 (function(){
   var s = document.createElement('script');
-  s.src = 'js/cascara-app.js?v=2026-06-19-3&t=' + Date.now();
+  s.src = 'js/cascara-app.js?v=2026-08-27-1&t=' + Date.now();
   s.onerror = function(e) {
     console.error('[Cáscara] FATAL: cascara-app.js no se pudo cargar', e);
     emergencyShowLogin('No se pudo cargar el script principal. Revisá tu conexión o probá la opción "↻ recargar" abajo a la izquierda.');

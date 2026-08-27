@@ -25,7 +25,7 @@ const Cascara = {
   // ---------- INIT ----------
   async init() {
     // BUILD INDICATOR — pill flotante con la versión + acción para forzar recarga
-    const BUILD = '2026-06-19-3';
+    const BUILD = '2026-08-27-1';
     try {
       const stamp = document.createElement('div');
       stamp.id = 'cascara-build-stamp';
@@ -681,6 +681,58 @@ const Cascara = {
     return { ok: true, patch };
   },
 
+  // ---------- INSIGHTS GATE (Franco/Marketing manda primero) ----------
+  // ¿La planificación está abierta para todas las áreas?
+  isInsightsOpen() {
+    // Si la columna no existe (Q viejo) o es true → abierto
+    return this.state.quarter?.insights_ready !== false;
+  },
+  // ¿Este usuario puede planificar aunque el gate esté cerrado?
+  // Growth & Marketing (Franco) y los admins siempre pueden.
+  canPlanBeforeInsights() {
+    if (this.isAdmin()) return true;
+    const slug = this.state.user?.area?.slug || this.state.area?.slug;
+    return slug === 'marketing';
+  },
+  async publishInsights() {
+    if (!this.state.quarter) return { ok: false, error: 'no-quarter' };
+    if (!this.canPlanBeforeInsights()) return { ok: false, error: 'not-allowed' };
+    const patch = {
+      insights_ready: true,
+      insights_ready_at: new Date().toISOString(),
+      insights_ready_by: this.state.user?.id || null,
+    };
+    const { error } = await this.client.from('quarters').update(patch).eq('id', this.state.quarter.id);
+    if (error) return { ok: false, error: error.message };
+    this.state.quarter.insights_ready = true;
+    document.dispatchEvent(new CustomEvent('cascara:insights-published'));
+    return { ok: true };
+  },
+  async reopenInsightsGate() {
+    if (!this.state.quarter) return { ok: false };
+    if (!this.isAdmin()) return { ok: false, error: 'not-admin' };
+    const { error } = await this.client.from('quarters').update({ insights_ready: false }).eq('id', this.state.quarter.id);
+    if (error) return { ok: false, error: error.message };
+    this.state.quarter.insights_ready = false;
+    return { ok: true };
+  },
+
+  // ---------- ARCHIVOS (historial de planificaciones) ----------
+  async listArchives() {
+    const { data, error } = await this.client
+      .from('quarter_archives')
+      .select('id, quarter_name, archived_at, archived_by_name, summary')
+      .order('archived_at', { ascending: false });
+    if (error) console.warn('[Cascara] listArchives:', error);
+    return data || [];
+  },
+  async getArchive(id) {
+    const { data, error } = await this.client
+      .from('quarter_archives').select('*').eq('id', id).maybeSingle();
+    if (error) { console.warn('[Cascara] getArchive:', error); return null; }
+    return data;
+  },
+
   async setAuditStatus(newStatus) {
     if (!this.state.quarter) return;
     const isSC = await this.isStrategyCouncil();
@@ -893,6 +945,16 @@ const CascaraForm = {
     // Pisar siempre el header del form con el state real (anti-hardcoded)
     this.refreshFormHeader();
 
+    // GATE DE INSIGHTS: si Growth & Marketing todavía no publicó sus insights,
+    // el resto de las áreas espera. Marketing y admins siempre pueden planificar.
+    if (!Cascara.isInsightsOpen() && !Cascara.canPlanBeforeInsights()) {
+      CascaraFormMarketing.teardown?.();
+      this.renderInsightsGate();
+      return;
+    }
+    // Limpiar la pantalla de espera si estaba puesta
+    this.removeInsightsGate();
+
     // Marketing tiene un form distinto: documento estratégico del Q
     if (Cascara.state.area.slug === 'marketing' || Cascara.state.area.name?.toLowerCase().includes('marketing')) {
       return CascaraFormMarketing.enter();
@@ -964,6 +1026,70 @@ const CascaraForm = {
     const metaQ = document.getElementById('fg-meta-q');
     if (metaQ) metaQ.textContent = q?.name || '—';
   },
+
+  // ---------- GATE DE INSIGHTS (pantalla de espera) ----------
+  renderInsightsGate() {
+    // Ocultar nav + contenido del form
+    const view = document.getElementById('view-formulario');
+    if (!view) return;
+    const nav = view.querySelector('.fg-nav');
+    if (nav) nav.style.display = 'none';
+    const content = view.querySelector('.fg-content');
+    if (content) content.style.display = 'none';
+    const actions = view.querySelector('.fg-actions');
+    if (actions) actions.style.display = 'none';
+
+    if (!document.getElementById('cascara-gate-style')) {
+      const st = document.createElement('style');
+      st.id = 'cascara-gate-style';
+      st.textContent = `
+        .cascara-insights-gate {
+          max-width: 640px; margin: 40px auto; padding: 44px 40px;
+          background: rgba(255,255,255,0.6); border: 1px solid rgba(195,154,0,0.35);
+          border-radius: 20px; text-align: center;
+          font-family: 'Helvetica Neue LT Std','Helvetica Neue',Helvetica,sans-serif;
+        }
+        .cig-icon { font-size: 38px; margin-bottom: 16px; }
+        .cig-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: #7A6000; margin-bottom: 12px; }
+        .cig-title { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; color: #0A0A0C; margin: 0 0 14px; line-height: 1.02; }
+        .cig-title em { font-family: 'Redaction10-Italic','Redaction',Georgia,serif; font-style: italic; font-weight: 400; color: #10069F; }
+        .cig-text { font-size: 14.5px; line-height: 1.6; color: #33333A; margin: 0 auto 10px; max-width: 480px; }
+        .cig-back { margin-top: 22px; background: #10069F; color: #fff; border: 0; padding: 12px 22px; border-radius: 999px; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+      `;
+      document.head.appendChild(st);
+    }
+
+    let gate = document.getElementById('cascara-insights-gate');
+    if (!gate) {
+      gate = document.createElement('div');
+      gate.id = 'cascara-insights-gate';
+      gate.className = 'cascara-insights-gate';
+      const app = view.querySelector('.form-glass-app');
+      if (app) app.appendChild(gate);
+    }
+    gate.style.display = '';
+    gate.innerHTML = `
+      <div class="cig-icon">⏳</div>
+      <div class="cig-eyebrow">${this.esc(Cascara.state.quarter?.name || 'Nuevo Q')} · Planificación por arrancar</div>
+      <h1 class="cig-title">Growth &amp; Marketing<em> va primero.</em></h1>
+      <p class="cig-text">Antes de que cada área planifique, <strong>Franco publica los insights y la tesis del trimestre</strong>. Esa bajada es la brújula sobre la que vas a construir tu plan.</p>
+      <p class="cig-text">En cuanto estén los insights, tu formulario se desbloquea automáticamente. Te avisamos.</p>
+      <button class="cig-back" onclick="goTo('home')">Volver al home</button>
+    `;
+  },
+  removeInsightsGate() {
+    const gate = document.getElementById('cascara-insights-gate');
+    if (gate) gate.style.display = 'none';
+    const view = document.getElementById('view-formulario');
+    if (!view) return;
+    const nav = view.querySelector('.fg-nav');
+    if (nav) nav.style.display = '';
+    const content = view.querySelector('.fg-content');
+    if (content) content.style.display = '';
+    const actions = view.querySelector('.fg-actions');
+    if (actions) actions.style.display = '';
+  },
+  esc(s) { return (s == null ? '' : String(s)).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); },
 
   // ---------- LAZY CREATE ----------
   async ensurePlanExists() {
@@ -4552,6 +4678,176 @@ const CascaraAudit = {
 window.CascaraAudit = CascaraAudit;
 
 /* ============================================================
+ * CascaraHistory — Historial de planificaciones cerradas
+ * Lista los Q archivados y renderiza el informe de cierre desde el snapshot.
+ * ============================================================ */
+const CascaraHistory = {
+  view: null,
+
+  ensureView() {
+    if (this.view) return this.view;
+    this.injectStyle();
+    const v = document.createElement('div');
+    v.id = 'view-history';
+    v.className = 'view';
+    v.innerHTML = `
+      <div class="hi-wrap">
+        <button class="ext-back" onclick="goTo('home')">← Volver al home</button>
+        <div class="hi-head">
+          <div class="hi-eyebrow">Cáscara · Historial de planificaciones</div>
+          <h1 class="hi-title">Trimestres <em>cerrados.</em></h1>
+          <div class="hi-sub">El registro de cada Q que planificamos. Abrí cualquiera para leer el informe de cierre completo: planes, proyectos, KPIs y cómo quedó el Master Timeline.</div>
+        </div>
+        <div id="hi-content">Cargando…</div>
+      </div>
+    `;
+    document.body.appendChild(v);
+    this.view = v;
+    return v;
+  },
+
+  injectStyle() {
+    if (document.getElementById('cascara-history-style')) return;
+    const s = document.createElement('style');
+    s.id = 'cascara-history-style';
+    s.textContent = `
+      #view-history { background: var(--cream, #DBD8D3); min-height: 100vh; padding: 36px 50px 60px; font-family:'Helvetica Neue LT Std','Helvetica Neue',Helvetica,sans-serif; }
+      #view-history .hi-wrap { max-width: 960px; margin: 0 auto; }
+      #view-history .ext-back { background:none; border:0; color:#52525A; cursor:pointer; font-size:13px; padding:0; margin-bottom:24px; font-family:inherit; }
+      #view-history .hi-eyebrow { font-size:11px; color:#10069F; text-transform:uppercase; letter-spacing:0.16em; font-weight:700; margin-bottom:12px; }
+      #view-history .hi-title { font-size:52px; font-weight:800; margin:0 0 8px; color:#0A0A0C; line-height:0.95; letter-spacing:-0.025em; }
+      #view-history .hi-title em { font-family:'Redaction10-Italic','Redaction',Georgia,serif; font-style:italic; color:#10069F; font-weight:400; }
+      #view-history .hi-sub { font-size:14px; color:#52525A; max-width:680px; line-height:1.5; margin-bottom:32px; }
+      .hi-card { background:rgba(255,255,255,0.6); border:1px solid rgba(0,0,0,0.07); border-radius:16px; padding:24px 28px; margin-bottom:14px; cursor:pointer; transition:transform .12s ease, box-shadow .12s ease; display:flex; align-items:center; justify-content:space-between; gap:20px; }
+      .hi-card:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,0.08); }
+      .hi-card-q { font-size:26px; font-weight:800; color:#10069F; letter-spacing:-0.02em; min-width:70px; }
+      .hi-card-info { flex:1; }
+      .hi-card-sum { font-size:13.5px; color:#33333A; line-height:1.5; margin-bottom:4px; }
+      .hi-card-meta { font-size:11.5px; color:#52525A; }
+      .hi-card-arrow { font-size:20px; color:#10069F; }
+      .hi-empty { padding:40px; text-align:center; color:#52525A; font-style:italic; background:rgba(255,255,255,0.4); border-radius:14px; }
+
+      /* Informe de cierre (render del snapshot) */
+      .hi-report-back { background:none; border:0; color:#10069F; cursor:pointer; font-size:13px; font-weight:700; padding:0; margin-bottom:20px; font-family:inherit; }
+      .hi-report h2 { font-size:30px; font-weight:800; letter-spacing:-0.02em; color:#0A0A0C; margin:0 0 6px; }
+      .hi-report .hi-rep-sub { font-size:13px; color:#52525A; margin-bottom:28px; }
+      .hi-rep-area { background:rgba(255,255,255,0.55); border:1px solid rgba(0,0,0,0.06); border-radius:16px; padding:26px 30px; margin-bottom:16px; }
+      .hi-rep-area-head { display:flex; align-items:baseline; gap:12px; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid rgba(16,6,159,0.15); }
+      .hi-rep-area-num { font-size:12px; font-weight:800; color:#10069F; letter-spacing:0.1em; }
+      .hi-rep-area-name { font-size:20px; font-weight:800; color:#0A0A0C; letter-spacing:-0.015em; }
+      .hi-rep-area-dir { font-size:12px; color:#52525A; font-style:italic; }
+      .hi-rep-field { margin-bottom:12px; }
+      .hi-rep-flabel { font-size:10px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:#7A6000; margin-bottom:4px; }
+      .hi-rep-ftext { font-size:13.5px; line-height:1.6; color:#1A1A1F; white-space:pre-wrap; }
+      .hi-rep-proj { background:#fff; border:1px solid rgba(0,0,0,0.08); border-radius:12px; padding:16px 18px; margin-top:10px; }
+      .hi-rep-proj-name { font-size:14px; font-weight:800; color:#0A0A0C; margin-bottom:4px; }
+      .hi-rep-proj-meta { font-size:11.5px; color:#52525A; margin-bottom:8px; }
+      .hi-rep-proj-scope { font-size:12.5px; line-height:1.55; color:#33333A; margin-bottom:8px; }
+      .hi-rep-kpis { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+      .hi-rep-kpi { font-size:11px; background:rgba(16,6,159,0.07); color:#10069F; padding:3px 9px; border-radius:999px; font-weight:600; }
+      .hi-rep-fort { display:inline-block; font-size:10.5px; background:#10069F; color:#fff; padding:2px 8px; border-radius:999px; font-weight:700; }
+    `;
+    document.head.appendChild(s);
+  },
+
+  async enter() {
+    if (!Cascara.state.user) { goTo('login'); return; }
+    this.ensureView();
+    const container = document.getElementById('hi-content');
+    container.innerHTML = 'Cargando…';
+    const archives = await Cascara.listArchives();
+    if (!archives.length) {
+      container.innerHTML = '<div class="hi-empty">Todavía no hay trimestres cerrados. Cuando cierres un Q, el informe queda archivado acá.</div>';
+      return;
+    }
+    container.innerHTML = '';
+    archives.forEach(a => {
+      const card = document.createElement('div');
+      card.className = 'hi-card';
+      const when = new Date(a.archived_at).toLocaleDateString('es-AR', { day:'2-digit', month:'long', year:'numeric' });
+      card.innerHTML = `
+        <div class="hi-card-q">${this.esc(a.quarter_name)}</div>
+        <div class="hi-card-info">
+          <div class="hi-card-sum">${this.esc(a.summary || 'Informe de cierre del trimestre.')}</div>
+          <div class="hi-card-meta">Archivado el ${this.esc(when)}${a.archived_by_name ? ' · por ' + this.esc(a.archived_by_name) : ''}</div>
+        </div>
+        <div class="hi-card-arrow">→</div>
+      `;
+      card.onclick = () => this.openReport(a.id);
+      container.appendChild(card);
+    });
+  },
+
+  async openReport(archiveId) {
+    const container = document.getElementById('hi-content');
+    container.innerHTML = 'Cargando informe…';
+    const archive = await Cascara.getArchive(archiveId);
+    if (!archive || !archive.snapshot) {
+      container.innerHTML = '<div class="hi-empty">No se pudo cargar el informe.</div>';
+      return;
+    }
+    const snap = typeof archive.snapshot === 'string' ? JSON.parse(archive.snapshot) : archive.snapshot;
+    container.innerHTML = this.renderReport(snap, archive);
+    const back = document.getElementById('hi-report-back');
+    if (back) back.onclick = () => this.enter();
+  },
+
+  renderReport(snap, archive) {
+    const q = snap.quarter || {};
+    const areas = snap.areas || [];
+    const fortLabel = (n) => n ? `Quincena ${String(n).padStart(2,'0')}` : null;
+
+    const areasHtml = areas.map((a, i) => {
+      const plan = a.plan || {};
+      const projects = plan.projects || [];
+      const projHtml = projects.map(pr => {
+        const kpis = (pr.kpis || []).filter(k => k && (k.name || k.target));
+        const kpisHtml = kpis.length ? `<div class="hi-rep-kpis">${kpis.map(k => `<span class="hi-rep-kpi">${this.esc(k.name || 'KPI')}${k.target ? ': ' + this.esc(k.target) : ''}</span>`).join('')}</div>` : '';
+        const fort = fortLabel(pr.fortnight);
+        return `
+          <div class="hi-rep-proj">
+            <div class="hi-rep-proj-name">${this.esc(pr.name || 'Proyecto sin nombre')}</div>
+            <div class="hi-rep-proj-meta">${pr.responsible ? 'Resp: ' + this.esc(pr.responsible) : ''}${fort ? ' · <span class="hi-rep-fort">' + fort + '</span>' : ''}</div>
+            ${pr.scope ? `<div class="hi-rep-proj-scope">${this.esc(pr.scope)}</div>` : ''}
+            ${pr.objective ? `<div class="hi-rep-field"><div class="hi-rep-flabel">Objetivo del Q</div><div class="hi-rep-ftext">${this.esc(pr.objective)}</div></div>` : ''}
+            ${kpisHtml}
+          </div>
+        `;
+      }).join('');
+
+      const field = (label, val) => val ? `<div class="hi-rep-field"><div class="hi-rep-flabel">${label}</div><div class="hi-rep-ftext">${this.esc(val)}</div></div>` : '';
+
+      return `
+        <div class="hi-rep-area">
+          <div class="hi-rep-area-head">
+            <span class="hi-rep-area-num">${String(i+1).padStart(2,'0')}</span>
+            <span class="hi-rep-area-name">${this.esc(a.area_name)}</span>
+            ${a.director ? `<span class="hi-rep-area-dir">· ${this.esc(a.director)}</span>` : ''}
+          </div>
+          ${field('Visión del área', plan.vision)}
+          ${field('Aprendizajes del Q', plan.learnings)}
+          ${field('Lo que NO hicimos', plan.non_goals)}
+          ${projects.length ? `<div class="hi-rep-field"><div class="hi-rep-flabel">Proyectos (${projects.length})</div>${projHtml}</div>` : ''}
+          ${plan.checkin_count != null ? `<div class="hi-rep-field"><div class="hi-rep-flabel">Check-ins registrados</div><div class="hi-rep-ftext">${plan.checkin_count}</div></div>` : ''}
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <button class="hi-report-back" id="hi-report-back">← Volver al historial</button>
+      <div class="hi-report">
+        <h2>Informe de cierre · ${this.esc(archive.quarter_name)}</h2>
+        <div class="hi-rep-sub">${areas.length} áreas planificaron este trimestre. ${q.audit_status === 'timeline_locked' ? 'El Master Timeline fue cerrado por el Strategy Council.' : ''}</div>
+        ${areasHtml}
+      </div>
+    `;
+  },
+
+  esc(s) { return (s == null ? '' : String(s)).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); },
+};
+window.CascaraHistory = CascaraHistory;
+
+/* ============================================================
  * CascaraExport — descarga el plan en JSON (para Claude u otros) o lo imprime como PDF
  * ============================================================ */
 const CascaraExport = {
@@ -4790,7 +5086,69 @@ const CascaraFormMarketing = {
     this.bindAutoSave();
     await this.renderLanzamientos();
     await this.renderArticulaciones();
+
+    // Banner + botón para publicar insights y abrir el gate al resto del equipo
+    this.renderInsightsPublisher();
   },
+
+  renderInsightsPublisher() {
+    const root = document.getElementById('mkt-form-root');
+    if (!root) return;
+    let bar = document.getElementById('mkt-insights-bar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'mkt-insights-bar';
+      bar.className = 'mkt-insights-bar';
+      root.insertBefore(bar, root.firstChild);
+    }
+    const open = Cascara.isInsightsOpen();
+    if (open) {
+      bar.className = 'mkt-insights-bar is-open';
+      bar.innerHTML = `
+        <div class="mib-txt"><strong>✓ Insights publicados.</strong> El resto de las áreas ya puede planificar el ${this.esc(Cascara.state.quarter?.name || 'Q')} tomando tu tesis como brújula.</div>
+        <button class="mib-btn reopen" id="mib-reopen">Reabrir edición exclusiva</button>
+      `;
+    } else {
+      bar.className = 'mkt-insights-bar is-closed';
+      bar.innerHTML = `
+        <div class="mib-txt"><strong>Sos el primero del ${this.esc(Cascara.state.quarter?.name || 'Q')}.</strong> Terminá de cargar tu tesis y directivas. Cuando publiques, se desbloquea la planificación para todas las áreas.</div>
+        <button class="mib-btn publish" id="mib-publish">Publicar insights →</button>
+      `;
+    }
+    // Estilos
+    if (!document.getElementById('mkt-insights-style')) {
+      const st = document.createElement('style');
+      st.id = 'mkt-insights-style';
+      st.textContent = `
+        .mkt-insights-bar { display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap;
+          padding:16px 20px; border-radius:14px; margin-bottom:22px; font-size:13.5px; line-height:1.5; }
+        .mkt-insights-bar.is-closed { background:rgba(195,154,0,0.1); border:1px solid rgba(195,154,0,0.35); color:#7A6000; }
+        .mkt-insights-bar.is-open { background:rgba(0,179,107,0.08); border:1px solid rgba(0,179,107,0.3); color:#00733C; }
+        .mib-txt strong { display:block; margin-bottom:2px; }
+        .mib-btn { border:0; border-radius:999px; padding:10px 20px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap; }
+        .mib-btn.publish { background:#C39A00; color:#fff; }
+        .mib-btn.publish:hover { filter:brightness(1.08); }
+        .mib-btn.reopen { background:transparent; color:#00733C; border:1px solid rgba(0,115,60,0.4); }
+      `;
+      document.head.appendChild(st);
+    }
+    const pub = document.getElementById('mib-publish');
+    if (pub) pub.onclick = async () => {
+      if (!confirm('Al publicar los insights, TODAS las áreas quedan habilitadas para planificar el Q tomando tu tesis como base. ¿Confirmás?')) return;
+      pub.disabled = true; pub.textContent = 'Publicando…';
+      const r = await Cascara.publishInsights();
+      if (r.ok) { this.renderInsightsPublisher(); alert('Insights publicados. El equipo ya puede planificar.'); }
+      else { pub.disabled = false; pub.textContent = 'Publicar insights →'; alert('Error: ' + (r.error || 'no se pudo publicar')); }
+    };
+    const reopen = document.getElementById('mib-reopen');
+    if (reopen) reopen.onclick = async () => {
+      if (!confirm('Reabrir vuelve a bloquear la planificación del resto de las áreas hasta que publiques de nuevo. ¿Seguro?')) return;
+      const r = await Cascara.reopenInsightsGate();
+      if (r.ok) this.renderInsightsPublisher();
+    };
+  },
+
+  esc(s) { return (s == null ? '' : String(s)).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); },
 
   teardown() {
     const mktRoot = document.getElementById('mkt-form-root');
@@ -5283,6 +5641,7 @@ const CascaraHome = {
       'juana tempesta': 'juana',
       'franco dato': 'franco',
       'francisca': 'francisca',
+      'second': 'second',
     };
     const k = reverseMap[dbName];
     if (k) window.currentUser = k;
@@ -5321,6 +5680,12 @@ const CascaraHome = {
 
     const ctaLbl = document.querySelector('.hcard.mine .hcard-cta-lbl');
     const ctaAction = document.querySelector('.hcard.mine .hcard-cta-action');
+    // GATE: si Growth & Marketing todavía no publicó insights y no soy Marketing/admin
+    if (!Cascara.isInsightsOpen() && !Cascara.canPlanBeforeInsights()) {
+      if (ctaLbl) ctaLbl.textContent = 'Esperando a Growth & Marketing';
+      if (ctaAction) ctaAction.textContent = 'Franco publica los insights primero';
+      return;
+    }
     if (!plan || completion.completed === 0) {
       if (ctaLbl) ctaLbl.textContent = 'Plan en blanco';
       if (ctaAction) ctaAction.textContent = 'Empezar mi planificación';
@@ -5463,6 +5828,7 @@ const USER_KEY_TO_DB_SLUG = {
   juana: 'juana tempesta',
   franco: 'franco dato',
   francisca: 'francisca',
+  second: 'second',
 };
 
 function bindLoginOverride() {
@@ -5612,6 +5978,7 @@ async function cascaraBootstrap() {
       if (viewName === 'check-ins') CascaraCheckIns.ensureView();
       if (viewName === 'official-preso') CascaraOfficialPreso.ensureView();
       if (viewName === 'audit-session') CascaraAudit.ensureView();
+      if (viewName === 'history') CascaraHistory.ensureView();
 
       // Ocultar banner de ejemplo al cambiar de vista
       if (viewName !== 'preso-viewer') CascaraPresentations.hideBanner();
@@ -5626,6 +5993,7 @@ async function cascaraBootstrap() {
       if (viewName === 'admin-dashboard') CascaraAdmin.enter();
       if (viewName === 'check-ins') CascaraCheckIns.enter();
       if (viewName === 'audit-session') CascaraAudit.enter();
+      if (viewName === 'history') CascaraHistory.enter();
       if (viewName === 'home') {
         CascaraPresentations.refreshMarks();
         CascaraHome.refresh();
@@ -5761,6 +6129,13 @@ async function injectNavLinks() {
       ciBtn.innerHTML = 'Mis check-ins <span class="arrow">→</span>';
       ciBtn.onclick = () => window.goTo('check-ins');
       container.insertBefore(ciBtn, container.firstChild);
+
+      // Historial de planificaciones — visible para todos
+      const histBtn = document.createElement('button');
+      histBtn.className = 'tb-link cascara-nav-link';
+      histBtn.innerHTML = 'Historial <span class="arrow">→</span>';
+      histBtn.onclick = () => window.goTo('history');
+      container.insertBefore(histBtn, container.firstChild);
     } finally {
       _navInjectInFlight = null;
     }
